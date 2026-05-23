@@ -2,11 +2,16 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import SimuladorART from "./fermentacao/simuladorART";
 import SimuladorMicrobiologico from "./microbiologia/viabilidade";
 import COISimulator from "./coi/GeraçaoDeVapor";
+import SimuladorSilicaBaixa from "./aguas/SilicaBaixa"
+
 
 function Home() {
   return (
     <div>
       <h1>Página Inicial</h1>
+       <Link to="/SilicaBaixa">
+        <button>Abrir Silica</button>
+      </Link>
 
       <Link to="/simulador">
         <button>Abrir Simulador</button>
@@ -29,6 +34,7 @@ function App() {
         <Route path="/simulador" element={<SimuladorART />} />
          <Route path="/viabilidade" element={<SimuladorMicrobiologico />} />
          <Route path="/coigeracaodevapor" element={<COISimulator />} />
+         <Route path="/SilicaBaixa" element={<SimuladorSilicaBaixa />} />
 
       </Routes>
     </BrowserRouter>
