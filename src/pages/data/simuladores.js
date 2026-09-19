@@ -1,0 +1,422 @@
+/**
+ * simuladores.js — fonte única de dados para Home e hubs de área.
+ *
+ * Estrutura de cada AREA:
+ *   key        — identificador único (usado como areaKey no AreaHub)
+ *   rota       — rota do hub de área  (/fermentacao, /aguas, …)
+ *   icone      — emoji representativo
+ *   titulo     — nome exibido na Home e no hub
+ *   cor        — cor principal (texto, bordas, botões)
+ *   corBg      — fundo do card
+ *   corBorda   — borda do card
+ *   descricao  — texto curto para o card da Home
+ *   simuladores — lista de experimentos daquela área
+ */
+export const AREAS = [
+  /* ─── FERMENTAÇÃO ──────────────────────────────────────────── */
+  {
+    key: 'fermentacao',
+    rota: '/fermentacao',
+    icone: '🍺',
+    titulo: 'Fermentação',
+    cor: '#f97316',
+    corBg: 'rgba(249,115,22,0.10)',
+    corBorda: 'rgba(249,115,22,0.32)',
+    descricao: 'ART, ARRT, acidez em dornas e mostos — análises de processo fermentativo.',
+    simuladores: [
+      {
+        rota: '/simulador',
+        icone: '🧪',
+        titulo: 'ART — Açúcares Redutores Totais',
+        subtitulo: 'Titulação colorimétrica · Lane-Eynon',
+        descricao: 'Bancada virtual de determinação de ART — procedimento completo em 22 etapas com titulação colorimétrica.',
+        cor: '#22d3ee', corBg: 'rgba(34,211,238,0.08)', corBorda: 'rgba(34,211,238,0.28)',
+      },
+      {
+        rota: '/arrtitrino',
+        icone: '⚗️',
+        titulo: 'ARRT — Titrino',
+        subtitulo: 'Fermentação · Dornas',
+        descricao: 'Determinação de ARRT em Dornas pelo método Titrino com Micro-ondas — filtração, Fehling, iodometria.',
+        cor: '#22d3ee', corBg: 'rgba(34,211,238,0.08)', corBorda: 'rgba(34,211,238,0.28)',
+      },
+      {
+        rota: '/artmosto',
+        icone: '⚗️',
+        titulo: 'ART — Mosto e Caldos',
+        subtitulo: 'Lane-Eynon · TE-088',
+        descricao: 'Determinação de ART em Mosto e Caldos pelo método Lane-Eynon/Redutec com TE-088.',
+        cor: '#f87171', corBg: 'rgba(248,113,113,0.08)', corBorda: 'rgba(248,113,113,0.28)',
+      },
+      {
+        rota: '/acides-dorna',
+        icone: '🍷',
+        titulo: 'Acidez Sulfúrica — Dornas',
+        subtitulo: 'Titulação potenciométrica',
+        descricao: 'Acidez em Cubas e Dornas com NaOH 1 mol/L até pH 8,7. Resultado em g H₂SO₄/L.',
+        cor: '#f87171', corBg: 'rgba(248,113,113,0.08)', corBorda: 'rgba(248,113,113,0.28)',
+      },
+      {
+        rota: '/acides-mosto',
+        icone: '🍯',
+        titulo: 'Acidez em Mosto',
+        subtitulo: 'Titulação potenciométrica',
+        descricao: 'Determinação de Acidez em Mosto por titulação com NaOH 1 mol/L até pH 8,7.',
+        cor: '#f59e0b', corBg: 'rgba(245,158,11,0.08)', corBorda: 'rgba(245,158,11,0.28)',
+      },
+    ],
+  },
+
+  /* ─── ÁGUAS ────────────────────────────────────────────────── */
+  {
+    key: 'aguas',
+    rota: '/aguas',
+    icone: '💧',
+    titulo: 'Tratamento de Águas',
+    cor: '#38bdf8',
+    corBg: 'rgba(56,189,248,0.10)',
+    corBorda: 'rgba(56,189,248,0.32)',
+    descricao: 'Alcalinidade, dureza, sílica, ferro, pH, condutividade, cloretos, ART em águas.',
+    simuladores: [
+      {
+        rota: '/alcalinidade',
+        icone: '🧪',
+        titulo: 'Alcalinidade Total',
+        subtitulo: 'H₂SO₄ · Alaranjado de Metila',
+        descricao: 'Determinação de Alcalinidade Total por titulação com H₂SO₄. Resultado em ppm CaCO₃.',
+        cor: '#fb923c', corBg: 'rgba(251,146,60,0.08)', corBorda: 'rgba(251,146,60,0.28)',
+      },
+      {
+        rota: '/dureza',
+        icone: '💧',
+        titulo: 'Dureza Total',
+        subtitulo: 'EDTA · Negro de Eriocromo',
+        descricao: 'Determinação da Dureza Total com Solução Tampão, Negro de Eriocromo e EDTA. Resultado em ppm CaCO₃.',
+        cor: '#3b82f6', corBg: 'rgba(59,130,246,0.08)', corBorda: 'rgba(59,130,246,0.28)',
+      },
+      {
+        rota: '/cloreto',
+        icone: '💧',
+        titulo: 'Cloretos em Águas',
+        subtitulo: 'Argentimetria · AgNO₃',
+        descricao: 'Determinação de Cloretos por titulação argentimétrica com AgNO₃ e Cromato de Potássio.',
+        cor: '#eab308', corBg: 'rgba(234,179,8,0.08)', corBorda: 'rgba(234,179,8,0.28)',
+      },
+      {
+        rota: '/ferro',
+        icone: '🟠',
+        titulo: 'Ferro Total',
+        subtitulo: 'Método Ferrozine · 562 nm',
+        descricao: 'Determinação de Ferro Total pelo Método Ferrozine — digestão branda, cubeta 25 mm.',
+        cor: '#fb923c', corBg: 'rgba(251,146,60,0.08)', corBorda: 'rgba(251,146,60,0.28)',
+      },
+      {
+        rota: '/ferro-hach',
+        icone: '🟠',
+        titulo: 'Ferro Total — FerroVer',
+        subtitulo: 'HACH · Sachê FerroVer',
+        descricao: 'Ferro Total HACH/FerroVer — sachê reagente em pó, cubeta 25 mm, timer 3 min, reação laranja.',
+        cor: '#fb923c', corBg: 'rgba(251,146,60,0.08)', corBorda: 'rgba(251,146,60,0.28)',
+      },
+      {
+        rota: '/SilicaBaixa',
+        icone: '🔷',
+        titulo: 'Sílica Baixa',
+        subtitulo: 'HACH 8185 · DR900',
+        descricao: 'Análise fotométrica de sílica dissolvida pelo método Azul Heteropoli (HACH 8185) com fotômetro DR900.',
+        cor: '#818cf8', corBg: 'rgba(129,140,248,0.08)', corBorda: 'rgba(129,140,248,0.28)',
+      },
+      {
+        rota: '/silica-alta',
+        icone: '🔷',
+        titulo: 'Sílica Alto Teor',
+        subtitulo: 'Molibdato de Amônio · Colorimétrico',
+        descricao: 'Sílica Alto Teor — HCl 2%, Ácido Oxálico, Molibdato de Amônio, Sulfito de Sódio. Timer 4 min.',
+        cor: '#38bdf8', corBg: 'rgba(56,189,248,0.08)', corBorda: 'rgba(56,189,248,0.28)',
+      },
+      {
+        rota: '/deha',
+        icone: '🔬',
+        titulo: 'DEHA — Sequestrante de O₂',
+        subtitulo: 'Fotométrico · ppb',
+        descricao: 'Sequestrante de Oxigênio DEHA — reagentes 1 e 2, reação 10 min no escuro, leitura em ppb.',
+        cor: '#a78bfa', corBg: 'rgba(167,139,250,0.08)', corBorda: 'rgba(167,139,250,0.28)',
+      },
+      {
+        rota: '/art-aguas',
+        icone: '🟢',
+        titulo: 'ART em Águas — Antrona',
+        subtitulo: 'Colorimétrico · Banho-Maria 12 min',
+        descricao: 'ART em Águas Residuais pelo Método Colorimétrico Antrona — Celite, filtração, banho-maria.',
+        cor: '#4ade80', corBg: 'rgba(74,222,128,0.08)', corBorda: 'rgba(74,222,128,0.28)',
+      },
+      {
+        rota: '/naftol',
+        icone: '🟣',
+        titulo: 'Açúcar em Águas — Alfa Naftol',
+        subtitulo: 'Qualitativo · Interface',
+        descricao: 'Detecção qualitativa de açúcar pelo Método Alfa Naftol — anel roxo na interface com H₂SO₄.',
+        cor: '#c084fc', corBg: 'rgba(192,132,252,0.08)', corBorda: 'rgba(192,132,252,0.28)',
+      },
+      {
+        rota: '/condutividade',
+        icone: '⚡',
+        titulo: 'Condutividade e STD/TDS',
+        subtitulo: 'HACH HQd · µS/cm e mg/L',
+        descricao: 'Condutividade e Sólidos Totais Dissolvidos em Águas — eletrodo IntelliCAL CDC401, NIST 1413.',
+        cor: '#38bdf8', corBg: 'rgba(56,189,248,0.08)', corBorda: 'rgba(56,189,248,0.28)',
+      },
+      {
+        rota: '/ph-aguas',
+        icone: '🟡',
+        titulo: 'Determinação de pH',
+        subtitulo: 'HACH HQd · IntelliCAL PHC101',
+        descricao: 'pH em Águas — pHmetro HACH HQd, eletrodo PHC101, calibração NIST pH 4,00 / 7,00.',
+        cor: '#fbbf24', corBg: 'rgba(251,191,36,0.08)', corBorda: 'rgba(251,191,36,0.28)',
+      },
+    ],
+  },
+
+  /* ─── MICROBIOLOGIA ─────────────────────────────────────────── */
+  {
+    key: 'microbiologia',
+    rota: '/microbiologia',
+    icone: '🔬',
+    titulo: 'Microbiologia',
+    cor: '#34d399',
+    corBg: 'rgba(52,211,153,0.10)',
+    corBorda: 'rgba(52,211,153,0.32)',
+    descricao: 'Viabilidade celular de leveduras, contagem de bastonetes e ácido lático.',
+    simuladores: [
+      {
+        rota: '/viabilidade',
+        icone: '🔬',
+        titulo: 'Viabilidade Celular',
+        subtitulo: 'Câmara de Neubauer · Microscopia',
+        descricao: 'Análise de viabilidade de células de levedura com câmara de Neubauer, micropipeta e microscópio óptico.',
+        cor: '#34d399', corBg: 'rgba(52,211,153,0.08)', corBorda: 'rgba(52,211,153,0.28)',
+      },
+      {
+        rota: '/contagembastonetes',
+        icone: '🧫',
+        titulo: 'Contagem de Bastonetes',
+        subtitulo: 'Microscopia 1000× · Azul de Metileno',
+        descricao: 'Contagem de bastonetes vivos com coloração Azul de Metileno + Sulfato de Nilo, óleo de imersão.',
+        cor: '#67e8f9', corBg: 'rgba(103,232,249,0.08)', corBorda: 'rgba(103,232,249,0.28)',
+      },
+      {
+        rota: '/acidolatico',
+        icone: '🧫',
+        titulo: 'Ácido Lático',
+        subtitulo: 'Fita de Determinação · ppm',
+        descricao: 'Determinação de Ácido Lático por centrifugação, fita de determinação e leitor digital. Resultado em ppm.',
+        cor: '#34d399', corBg: 'rgba(52,211,153,0.08)', corBorda: 'rgba(52,211,153,0.28)',
+      },
+    ],
+  },
+
+  /* ─── MERCK ─────────────────────────────────────────────────── */
+  {
+    key: 'merck',
+    rota: '/merck',
+    icone: '⚗️',
+    titulo: 'Merck · Qhantye',
+    cor: '#818cf8',
+    corBg: 'rgba(129,140,248,0.10)',
+    corBorda: 'rgba(129,140,248,0.32)',
+    descricao: 'Kits fotométricos Spectroquant e Qhantye: sílica, ferro, cloreto, cloro livre e dureza.',
+    simuladores: [
+      {
+        rota: '/silica-mk',
+        icone: '🔵',
+        titulo: 'Silicato — Merck 100857',
+        subtitulo: 'Spectroquant Prove 300',
+        descricao: 'Silicato (Ácido Silícico) Kit Merck 100857 — 4 reagentes, 2 tempos de reação, cubeta 10 mm.',
+        cor: '#3b82f6', corBg: 'rgba(59,130,246,0.08)', corBorda: 'rgba(59,130,246,0.28)',
+      },
+      {
+        rota: '/silica-baixa-mk',
+        icone: '🟢',
+        titulo: 'Sílica Baixa Faixa — Merck 114794',
+        subtitulo: 'Spectroquant Prove 300',
+        descricao: 'Sílica (baixa faixa) Kit Merck 114794 — Reagentes SB1 (3 gotas) e SB2 (0,50 mL).',
+        cor: '#34d399', corBg: 'rgba(52,211,153,0.08)', corBorda: 'rgba(52,211,153,0.28)',
+      },
+      {
+        rota: '/silica-alta-mk',
+        icone: '🔵',
+        titulo: 'Sílica Alta Faixa — Merck 100857',
+        subtitulo: 'Spectroquant Prove 300',
+        descricao: 'Sílica (alta faixa) Kit 100857 — Si-1 (4 gotas) + Si-2 (2,0 mL), faixa 1,1–107,0 mg/L SiO₂.',
+        cor: '#3b82f6', corBg: 'rgba(59,130,246,0.08)', corBorda: 'rgba(59,130,246,0.28)',
+      },
+      {
+        rota: '/ferro-mk',
+        icone: '🟠',
+        titulo: 'Ferro Total — Merck Curva 966',
+        subtitulo: 'Spectroquant® · Cubeta 50 mm',
+        descricao: 'Ferro Total Merck Curva 966 — Micropipeta P10000, Fe-1 (6 gotas), digestão 10 min, cubeta 50 mm.',
+        cor: '#ea580c', corBg: 'rgba(234,88,12,0.08)', corBorda: 'rgba(234,88,12,0.28)',
+      },
+      {
+        rota: '/cloreto-mk',
+        icone: '🟢',
+        titulo: 'Cloreto — Merck Kit 114897',
+        subtitulo: 'Spectroquant Prove 300',
+        descricao: 'Cloreto Kit Merck 114897 — 5,0 mL amostra, Reagente Cl-1 + Cl-2, reconhecimento automático do kit.',
+        cor: '#10b981', corBg: 'rgba(16,185,129,0.08)', corBorda: 'rgba(16,185,129,0.28)',
+      },
+      {
+        rota: '/cloro-mk',
+        icone: '🟩',
+        titulo: 'Cloro Livre — Merck ST598 (Curva 598)',
+        subtitulo: 'Spectroquant Prove 300',
+        descricao: 'Cloro Livre Kit ST598 — Envelope em pó, 1 min reação, zeragem c/ água destilada. Faixa 0,05–5,0 mg/L Cl₂.',
+        cor: '#059669', corBg: 'rgba(5,150,105,0.08)', corBorda: 'rgba(5,150,105,0.28)',
+      },
+      {
+        rota: '/dureza-mk',
+        icone: '🟢',
+        titulo: 'Dureza Total — Calmagita (Kit 0028631)',
+        subtitulo: 'Qhantye Science Solution',
+        descricao: 'Dureza Total Kit Qhantye 0028631 — Calmagita, 2 cilindros 25 mL, EDTA branco, cubeta 50 mm.',
+        cor: '#16a34a', corBg: 'rgba(22,163,74,0.08)', corBorda: 'rgba(22,163,74,0.28)',
+      },
+    ],
+  },
+
+  /* ─── DESTILARIA ────────────────────────────────────────────── */
+  {
+    key: 'destilaria',
+    rota: '/destilaria',
+    icone: '🥃',
+    titulo: 'Destilaria',
+    cor: '#a78bfa',
+    corBg: 'rgba(167,139,250,0.10)',
+    corBorda: 'rgba(167,139,250,0.32)',
+    descricao: 'Teor alcoólico °GL, acidez, condutividade e pH em álcool etílico.',
+    simuladores: [
+      {
+        rota: '/glco2',
+        icone: '🧫',
+        titulo: 'Teor Alcoólico °GL — Coluna CO₂',
+        subtitulo: 'Microdestilação · Densimetria Digital',
+        descricao: 'Teor Alcoólico (°GL) em Coluna de CO₂ por microdestilação e densimetria digital. % álcool ÷ 5.',
+        cor: '#a78bfa', corBg: 'rgba(167,139,250,0.08)', corBorda: 'rgba(167,139,250,0.28)',
+      },
+      {
+        rota: '/glcuba',
+        icone: '🧫',
+        titulo: 'Teor Alcoólico °GL — Cuba/Dorna/Volante',
+        subtitulo: 'Microdestilação · Densimetria Digital',
+        descricao: 'Teor Alcoólico (°GL) em Cuba, Dorna e Volante por microdestilação e densimetria digital.',
+        cor: '#a78bfa', corBg: 'rgba(167,139,250,0.08)', corBorda: 'rgba(167,139,250,0.28)',
+      },
+      {
+        rota: '/acalcoo',
+        icone: '⚗️',
+        titulo: 'Acidez — Álcool Etílico',
+        subtitulo: 'Alfa-naftolftaleína · NaOH 0,02 mol/L',
+        descricao: 'Acidez Total em Álcool Etílico com Alfa-naftolftaleína e NaOH 0,02 mol/L — viragem incolor → azul.',
+        cor: '#60a5fa', corBg: 'rgba(96,165,250,0.08)', corBorda: 'rgba(96,165,250,0.28)',
+      },
+      {
+        rota: '/condutividade-alcool',
+        icone: '⚡',
+        titulo: 'Condutividade — Álcool',
+        subtitulo: 'HACH HQ40d · µS/cm',
+        descricao: 'Condutividade e STD/TDS em Álcool — HACH HQ40d, eletrodo CDC401, NIST 1413.',
+        cor: '#38bdf8', corBg: 'rgba(56,189,248,0.08)', corBorda: 'rgba(56,189,248,0.28)',
+      },
+      {
+        rota: '/ph-alcool',
+        icone: '🟡',
+        titulo: 'pH — Álcool Etílico',
+        subtitulo: 'HACH HQd · Conformidade pH 6,0–8,0',
+        descricao: 'pH em Álcool Etílico — pHmetro HACH HQd, calibração NIST. Faixa de conformidade: 6,0–8,0.',
+        cor: '#fbbf24', corBg: 'rgba(251,191,36,0.08)', corBorda: 'rgba(251,191,36,0.28)',
+      },
+    ],
+  },
+
+  /* ─── COI ───────────────────────────────────────────────────── */
+  {
+    key: 'coi',
+    rota: '/coi',
+    icone: '⚙️',
+    titulo: 'COI — Caldeiras',
+    cor: '#f59e0b',
+    corBg: 'rgba(245,158,11,0.10)',
+    corBorda: 'rgba(245,158,11,0.32)',
+    descricao: 'Painel SCADA industrial: caldeiras, queimadores, bombas, esteiras e alarmes em tempo real.',
+    simuladores: [
+      {
+        rota: '/coigeracaodevapor',
+        icone: '⚙️',
+        titulo: 'Cogeração de Vapor',
+        subtitulo: 'SCADA · Caldeiras · Queimadores · Alarmes',
+        descricao: 'Painel SCADA de monitoramento industrial: caldeiras, queimadores, bombas, esteiras e sistema de alarmes em tempo real.',
+        cor: '#f59e0b', corBg: 'rgba(245,158,11,0.08)', corBorda: 'rgba(245,158,11,0.28)',
+      },
+    ],
+  },
+
+  /* ─── CALDOS ────────────────────────────────────────────────── */
+  {
+    key: 'caldos',
+    rota: '/caldos',
+    icone: '🍵',
+    titulo: 'Caldos',
+    cor: '#86efac',
+    corBg: 'rgba(134,239,172,0.10)',
+    corBorda: 'rgba(134,239,172,0.32)',
+    descricao: 'Análises de caldos de processo — método polarimétrico CONSECANA.',
+    simuladores: [
+      {
+        rota: '/pol-bagaco',
+        icone: '🔬',
+        titulo: 'Pol de Bagaço',
+        subtitulo: 'Polarimetria · CONSECANA',
+        descricao: 'Determinação de Pol no bagaço pelo método polarimétrico CONSECANA — 9 etapas com pesagem, clarificação e leitura em escala Ventzke.',
+        cor: '#86efac', corBg: 'rgba(134,239,172,0.08)', corBorda: 'rgba(134,239,172,0.28)',
+      },
+      {
+        rota: '/umidade-bagaco',
+        icone: '💧',
+        titulo: 'Umidade do Bagaço',
+        subtitulo: 'Estufa Spencer · CONSECANA',
+        descricao: 'Determinação da umidade do bagaço pelo método gravimétrico — Estufa Spencer 105 °C por 30 minutos. Fórmula: Ub = (P1 − P2) × 2.',
+        cor: '#7dd3fc', corBg: 'rgba(125,211,252,0.08)', corBorda: 'rgba(125,211,252,0.28)',
+      },
+      {
+        rota: '/impureza-bagaco',
+        icone: '⚗️',
+        titulo: 'Impureza Mineral',
+        subtitulo: 'Método Mufla · CONSECANA',
+        descricao: 'Determinação de impureza mineral no bagaço residual — incineração em mufla até peso constante. Fórmulas: % Terra e Kg Terra/t.',
+        cor: '#f59e0b', corBg: 'rgba(245,158,11,0.08)', corBorda: 'rgba(245,158,11,0.28)',
+      },
+      {
+        rota: '/umidade-torta',
+        icone: '🧱',
+        titulo: 'Umidade da Torta',
+        subtitulo: 'Estufa Spencer · CONSECANA',
+        descricao: 'Determinação da umidade da torta de filtro — Estufa Spencer 100 °C por 30 minutos. Fórmula: %Umidade = (P1 − P2) × 10.',
+        cor: '#d4a030', corBg: 'rgba(212,160,48,0.08)', corBorda: 'rgba(212,160,48,0.28)',
+      },
+    ],
+  },
+
+  /* ─── INSUMOS ───────────────────────────────────────────────── */
+  {
+    key: 'insumos',
+    rota: '/insumos',
+    icone: '🧴',
+    titulo: 'Insumos',
+    cor: '#fda4af',
+    corBg: 'rgba(253,164,175,0.10)',
+    corBorda: 'rgba(253,164,175,0.32)',
+    descricao: 'Análises de insumos de processo — novos módulos em desenvolvimento.',
+    simuladores: [],
+  },
+];

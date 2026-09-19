@@ -1,3 +1,24 @@
+/**
+ * GeraçaoDeVapor.jsx — Painel SCADA de Cogeração de Vapor (COI)
+ *
+ * Interface industrial de monitoramento e controle estilo SCADA para
+ * o sistema de cogeração de vapor de uma usina sucroalcooleira.
+ *
+ * Painéis disponíveis:
+ *   - Master View: visão geral das caldeiras e geradores
+ *   - Caldeira 1 Detail: controle detalhado da caldeira 1 (queimadores, bombas, ventiladores)
+ *   - Esteiras: sistema de esteiras de bagaço (alimentação de combustível)
+ *   - [Painel vazio]: reservado para expansão futura
+ *
+ * Funcionalidades:
+ *   - Relógio em tempo real · Contador e painel de alarmes ativos
+ *   - Modal de controle por equipamento (ligar/desligar/auto/manual/reset)
+ *   - Navegação por abas nos painéis
+ *   - Animação de fluxo em tubulações SVG
+ *
+ * Estilo: CSS injetado via index.css (classes .coi-*).
+ * Não usa Tailwind nem injeção JS — CSS global puro.
+ */
 import { useState, useEffect, useCallback } from "react";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -388,12 +409,6 @@ const getQueimadorVisual = (n) => ({
   const bombasTutorialAtivas = etapaAtual === 2 ? [4, 3, 2, 1,0] : [];
 
   const isBombaTutorial = (num) => bombasTutorialAtivas.includes(num);
-
-  const getBombaLabel = (num) =>
-    bombasConfig.find((bomba) => bomba.num === num)?.label || `Bomba ${num}`;
-
-
-
 
   return (
     <div className="panel">
@@ -1133,15 +1148,6 @@ function PanelEsteiras({ open, motoresLigados = [], onMotorClick, proximoMotor =
       l2: { cx: 810, cy: 280, dx: 100, dy: 60,  corteInicio: -140, corteFim: 40 },
     },
   };
-  const esteiras = [
-
-    
-    { n:1, lx:300,  rx:100, mx:35,  alarm:true,  vals:["-39.0","-0.8"],  trip:true  },
-    { n:2, lx:120, rx:280, mx:185, alarm:false, vals:["0.0","NA"],   trip:false },
-    { n:4, lx:380, rx:460, mx:455, alarm:true,  vals:["+195.1","+90.0"], trip:false, extra:"+53.0 %A" },
-    { n:5, lx:720, rx:790, mx:760, alarm:false, vals:["+95.0","—"],   trip:false },
-    { n:6, lx:830, rx:870, mx:865, alarm:true,  vals:["+181.5","—"],  trip:true  },
-  ];
   return (
     <div className="panel">
       <div className="panel-header">

@@ -1,0 +1,38 @@
+/**
+ * etapasBastonetes.js — Protocolo de Contagem de Bastonetes Vivos em Vinho
+ *
+ * Sequência de 21 etapas do simulador de bancada microbiológica.
+ * Cada etapa define qual item o usuário deve arrastar e para qual alvo.
+ *
+ * Campos:
+ *   id       — índice da etapa
+ *   titulo   — texto exibido no painel lateral
+ *   descricao — instrução detalhada para o aluno
+ *   item     — identificador do item que deve ser arrastado (null = clique)
+ *   alvo     — identificador do alvo onde o item deve ser solto
+ *
+ * Referência metodológica: ATy OPE GQI-PR-002, página 156.
+ */
+export const etapas = [
+  { id: 0,  titulo: 'Transferir a amostra de vinho para o tubo de ensaio',                        descricao: 'Arraste o frasco de amostra até o tubo de ensaio para transferir aproximadamente 5 mL.',                                                                                                item: 'amostra',  alvo: 'tubo'        },
+  { id: 1,  titulo: 'Coletar papaína com a espátula',                                              descricao: 'Arraste a espátula até o frasco de papaína para coletar o pó com a ponta.',                                                                                                            item: 'espatula', alvo: 'papaina'     },
+  { id: 2,  titulo: 'Adicionar papaína ao tubo de ensaio',                                         descricao: 'Arraste a espátula com papaína até o tubo de ensaio para adicionar o reagente.',                                                                                                       item: 'espatula', alvo: 'tubo'        },
+  { id: 3,  titulo: 'Homogeneizar no Vórtex e aguardar 5 minutos',                                 descricao: 'Arraste o tubo de ensaio até o Agitador Vórtex para homogeneizar. Aguardar 5 min em repouso.',                                                                                        item: 'tubo',     alvo: 'vortex'      },
+  { id: 4,  titulo: 'Selecionar Ponteira P1000',                                                   descricao: 'Clique em uma ponteira P1000 (amarela) no rack para acoplá-la à micropipeta.',                                                                                                         item: 'rack',     alvo: 'rack'        },
+  { id: 5,  titulo: 'Aspirar 1 mL da amostra homogeneizada',                                      descricao: 'Arraste a micropipeta até o tubo de ensaio para aspirar 1 mL da amostra.',                                                                                                             item: 'pipeta',   alvo: 'tubo'        },
+  { id: 6,  titulo: 'Transferir amostra para o tubo de diluição',                                  descricao: 'Arraste a micropipeta carregada até o tubo de diluição.',                                                                                                                              item: 'pipeta',   alvo: 'tubovazio'   },
+  { id: 7,  titulo: 'Adicionar água desmineralizada ao tubo de diluição',                          descricao: 'Arraste a água desmineralizada até o tubo de diluição para ajustar a concentração (3 a 5 células por campo).',                                                                         item: 'agua',     alvo: 'tubovazio'   },
+  { id: 8,  titulo: 'Homogeneizar o tubo de diluição no Vórtex',                                   descricao: 'Arraste o tubo de diluição até o Agitador Vórtex para homogeneizar.',                                                                                                                  item: 'tubovazio',alvo: 'vortex'      },
+  { id: 9,  titulo: 'Aspirar 1 mL da amostra diluída',                                            descricao: 'Arraste a micropipeta até o tubo de diluição para aspirar 1 mL.',                                                                                                                      item: 'pipeta',   alvo: 'tubovazio'   },
+  { id: 10, titulo: 'Transferir 1 mL da amostra diluída para o tubo final',                       descricao: 'Arraste a micropipeta até o tubo de ensaio final e deposite 1 mL.',                                                                                                                    item: 'pipeta',   alvo: 'tubofinal'   },
+  { id: 11, titulo: 'Aspirar a solução de coloração (Azul de Metileno + Sulfato de Nilo)',         descricao: 'Arraste a micropipeta até o frasco de solução de coloração para aspirar 1 mL.',                                                                                                        item: 'pipeta',   alvo: 'corante'     },
+  { id: 12, titulo: 'Adicionar a solução de coloração ao tubo final',                              descricao: 'Arraste a micropipeta carregada com solução de coloração até o tubo de ensaio final.',                                                                                                 item: 'pipeta',   alvo: 'tubofinal'   },
+  { id: 13, titulo: 'Homogeneizar o tubo final no Vórtex',                                         descricao: 'Arraste o tubo de ensaio final até o Agitador Vórtex para homogeneizar.',                                                                                                              item: 'tubofinal',alvo: 'vortex'      },
+  { id: 14, titulo: 'Selecionar Ponteira P500',                                                    descricao: 'Clique em uma ponteira de tamanho médio (verde) no rack para acoplá-la à micropipeta como ponteira P500.',                                                                             item: 'rack',     alvo: 'rack'        },
+  { id: 15, titulo: 'Aspirar o volume para a lâmina de infecção',                                  descricao: 'Arraste a micropipeta até o tubo final para aspirar o volume adequado à área da lamínula.',                                                                                            item: 'pipeta',   alvo: 'tubofinal'   },
+  { id: 16, titulo: 'Transferir o volume para a lâmina de infecção',                               descricao: 'Arraste a micropipeta até a lâmina de infecção e deposite o volume. Posicione a lamínula sobre a preparação.',                                                                        item: 'pipeta',   alvo: 'lamina'      },
+  { id: 17, titulo: 'Adicionar óleo de imersão sobre a lamínula',                                  descricao: 'Arraste o frasco de óleo de imersão até a lâmina e aplique uma gota sobre a lamínula.',                                                                                               item: 'oil',      alvo: 'lamina'      },
+  { id: 18, titulo: 'Posicionar a lâmina na platina do microscópio',                               descricao: 'Arraste a lâmina de infecção até a platina do microscópio óptico.',                                                                                                                   item: 'lamina',   alvo: 'microscopio' },
+  { id: 19, titulo: 'Focalizar em 1000× com óleo de imersão',                                     descricao: 'Clique no microscópio para focalizar em aumento de 1000× com óleo de imersão.',                                                                                                       item: null,       alvo: 'microscopio' },
+  { id: 20, titulo: 'Contagem de bastonetes vivos (50 campos)',                                    descricao: 'Clique no microscópio para abrir a interface de contagem. Conte apenas os bastonetes não corados (vivos). Bastonetes mortos corados em azul NÃO devem ser contados.', item: null, alvo: 'microscopio' },
+];

@@ -1,2156 +1,672 @@
-
-import React, { useCallback, useMemo, useState } from 'react';
+/**
+ * SimuladorART.jsx — Análise de Açúcares Redutores Totais (ART) da Dorna
+ *
+ * Simulador de bancada com 22 etapas pelo método de Fehling (TE-088).
+ * Refatorado para seguir o padrão estrutural e visual do ArtMosto.jsx.
+ *
+ * Fluxo: Filtração → Pesagem → NaOH → Microondas → Açúcar → Fenol → HCl
+ *        → EDTA → Água → Fehling A/B → TE-088 → Azul de Metileno
+ *        → Transferência bureta → Titulação → Viragem vermelho cereja
+ */
+import React from 'react';
 import { Star, CheckCircle } from 'lucide-react';
 import { LayoutSimulador } from '../SimuladorComponentes';
+import FrascoReagente from '../components/lab/FrascoReagente';
+import ItemBancada from '../components/lab/ItemBancada';
+import ZonaDrop from '../components/lab/ZonaDrop';
+import BequerSVG from '../components/lab/BequerSVG';
+import PipetaLabSVG from '../components/lab/PipetaLabSVG';
+import MicroondasArrtSVG from '../components/lab/MicroondasArrtSVG';
+import BalaoVolumetrico200SVG from '../components/lab/BalaoVolumetrico200SVG';
+import TE088SVG from '../components/lab/TE088SVG';
+import BuretaModalSVG from '../components/lab/BuretaModalSVG';
+import { useDragOverlay } from '../hooks/useDragOverlay';
+import { etapas } from './data/etapasART';
+import { useARTGameState } from '../hooks/useARTGameState';
+import { useSimuladorDragART } from '../hooks/useSimuladorDragART';
+import { useARTTransferencias } from '../hooks/useARTTransferencias';
+import { useARTReacoes } from '../hooks/useARTReacoes';
+import { useARTTE088 } from '../hooks/useARTTE088';
+import { useState } from 'react';
 
 
+/* ═══════════════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+═══════════════════════════════════════════════════════════ */
 const SimuladorART = () => {
-  const [pontuacao, setPontuacao] = useState(0);
-  const [etapaAtual, setEtapaAtual] = useState(0);
-  const [itemSegurado, setItemSegurado] = useState(null);
-  const [mostrarParabens, setMostrarParabens] = useState(false);
-  const [funilEncaixado, setFunilEncaixado] = useState(false);
-  const [funilPosicionado, setFunilPosicionado] = useState(false);
-  const [filtrando, setFiltrando] = useState(false);
-  const [nivelColetor, setNivelColetor] = useState(0);
-  const [peso, setPeso] = useState(0);
-  const [pesando, setPesando] = useState(false);
-  const [nivelAmostra, setNivelAmostra] = useState(100);
-  const [funilVoltando, setFunilVoltando] = useState(false);
-  const [balaoEncaixado, setBalaoEncaixado] = useState(false);
-  const [balaoPosicionado, setBalaoPosicionado] = useState(false);
-  const [transferindo, setTransferindo] = useState(false);
-  const [nivelBalao, setNivelBalao] = useState(0);
-  const [pipetaCheia, setPipetaCheia] = useState(false);
-  const [nivelPipeta, setNivelPipeta] = useState(0);
-  const [transferindoPipeta, setTransferindoPipeta] = useState(false);
+  useDragOverlay();
+
+  // ── Game state ────────────────────────────────────────
+  const {
+    pontuacao, etapaAtual, itemSegurado, setItemSegurado,
+    mostrarParabens, concluido, volumeGasto, artPercentual, estrelas,
+    avancarEtapa, finalizarAnalise,
+  } = useARTGameState(etapas.length);
+
+  // ── Filtração ─────────────────────────────────────────
+  const [funilEncaixado,    setFunilEncaixado]    = useState(false);
+  const [funilPosicionado,  setFunilPosicionado]  = useState(false);
+  const [filtrando,         setFiltrando]         = useState(false);
+  const [nivelColetor,      setNivelColetor]      = useState(0);
+  const [nivelAmostra,      setNivelAmostra]      = useState(100);
+  const [funilVoltando,     setFunilVoltando]     = useState(false);
+
+  // ── Balança / transferência ───────────────────────────
+  const [, setBalaoEncaixado] = useState(false);
+  const [balaoPosicionado,  setBalaoPosicionado]  = useState(false);
+  const [transferindo,      setTransferindo]      = useState(false);
+  const [peso,              setPeso]              = useState(0);
+  const [pesando,           setPesando]           = useState(false);
+
+  // ── Balão da bancada ──────────────────────────────────
+  const [nivelBalao,        setNivelBalao]        = useState(0);
   const [balaoNoMicroondas, setBalaoNoMicroondas] = useState(false);
-  const [tempoMicroondas, setTempoMicroondas] = useState(30);
-  const [aquecendo, setAquecendo] = useState(false);
-  const [amostraQuente, setAmostraQuente] = useState(false);
+  const [tempoMicroondas,   setTempoMicroondas]   = useState(30);
+  const [aquecendo,         setAquecendo]         = useState(false);
+  const [amostraQuente,     setAmostraQuente]     = useState(false);
   const [mostrarAvisoResfriamento, setMostrarAvisoResfriamento] = useState(false);
-  const [pipetaAcucarCheia, setPipetaAcucarCheia] = useState(false);
-  const [nivelPipetaAcucar, setNivelPipetaAcucar] = useState(0);
+
+  // ── Pipeta (NaOH, Açúcar, HCl, Azul de Metileno) ─────
+  const [pipetaCheia,            setPipetaCheia]            = useState(false);
+  const [nivelPipeta,            setNivelPipeta]            = useState(0);
+  const [transferindoPipeta,     setTransferindoPipeta]     = useState(false);
+  const [pipetaAcucarCheia,      setPipetaAcucarCheia]      = useState(false);
+  const [nivelPipetaAcucar,      setNivelPipetaAcucar]      = useState(0);
   const [transferindoPipetaAcucar, setTransferindoPipetaAcucar] = useState(false);
-  const [adicionandoFenol, setAdicionandoFenol] = useState(false);
-  const [gotasFenol, setGotasFenol] = useState(0);
-  const [pipetaHClCheia, setPipetaHClCheia] = useState(false);
-  const [nivelPipetaHCl, setNivelPipetaHCl] = useState(0);
-  const [titulando, setTitulando] = useState(false);
-  const [corBalao, setCorBalao] = useState('amber');
-  const [agitacao, setAgitacao] = useState(false);
-  const [nivelAlvoPipetaHCl, setNivelAlvoPipetaHCl] = useState(100);
+  const [pipetaHClCheia,         setPipetaHClCheia]         = useState(false);
+  const [nivelPipetaHCl,         setNivelPipetaHCl]         = useState(0);
+  const [nivelAlvoPipetaHCl,     setNivelAlvoPipetaHCl]     = useState(100);
+  const [pipetaAzulCheia,        setPipetaAzulCheia]        = useState(false);
+  const [nivelPipetaAzul,        setNivelPipetaAzul]        = useState(0);
+
+  // ── Reações ───────────────────────────────────────────
+  const [adicionandoFenol,  setAdicionandoFenol]  = useState(false);
+  const [gotasFenol,        setGotasFenol]        = useState(0);
+  const [titulando,         setTitulando]         = useState(false);
+  const [corBalao,          setCorBalao]          = useState('amber');
+  const [, setAgitacao] = useState(false);
   const [neutralizandoEDTA, setNeutralizandoEDTA] = useState(false);
-  const [gotasEDTA, setGotasEDTA] = useState(0);
-  const [gotejandoEDTA, setGotejandoEDTA] = useState(false);
-  const [adicionandoAgua, setAdicionandoAgua] = useState(false);
-  const [nivelAlvoBalao, setNivelAlvoBalao] = useState(100); // menisco
-  const [diluindo, setDiluindo] = useState(false);
-  const [te088Ligado, setTe088Ligado] = useState(false);
-  const [te088Aquecendo, setTe088Aquecendo] = useState(false);
-  const [fervendo, setFervendo] = useState(false);
-  const [te088Quente, setTe088Quente] = useState(false);
-  const [fehlingAAdicionado, setFehlingAAdicionado] = useState(false);
-  const [nivelErlenmeyerTE, setNivelErlenmeyerTE] = useState(0);
-  const [fehlingBAdicionado, setFehlingBAdicionado] = useState(false);
-  const [pipetaAzulCheia, setPipetaAzulCheia] = useState(false);
-  const [nivelPipetaAzul, setNivelPipetaAzul] = useState(0);
-  const [erlenmeyerDireitoAzul, setErlenmeyerDireitoAzul] = useState(false);
-  const [gotasAzul, setGotasAzul] = useState(0);
-  const [gotejandoAzul, setGotejandoAzul] = useState(false);
-  const [posicaoGotasAzul, setPosicaoGotasAzul] = useState([]);
-  const [transferindoBalaoParaBureta, setTransferindoBalaoParaBureta] = useState(false);
-  const [nivelBuretaDireita, setNivelBuretaDireita] = useState(0);
-  const [corBuretaDireita, setCorBuretaDireita] = useState('#ffffff');
-  const [gotejandoBuretaDireita, setGotejandoBuretaDireita] = useState(false);
-  const [corErlenmeyerDireitoFinal, setCorErlenmeyerDireitoFinal] = useState('#3b82f6'); // azul inicial
-  const [posicaoGotasBureta, setPosicaoGotasBureta] = useState([]);
-  const [concluido, setConcluido] = useState(false);
-  const [volumeGasto, setVolumeGasto] = useState(null);
-  const [artPercentual, setArtPercentual] = useState(null);
+  const [gotasEDTA,         setGotasEDTA]         = useState(0);
+  const [gotejandoEDTA,     setGotejandoEDTA]     = useState(false);
+  const [adicionandoAgua,   setAdicionandoAgua]   = useState(false);
+  const [nivelAlvoBalao] = useState(100);
+  const [diluindo,          setDiluindo]          = useState(false);
 
+  // ── TE-088 ────────────────────────────────────────────
+  const [te088Ligado,              setTe088Ligado]              = useState(false);
+  const [te088Aquecendo,           setTe088Aquecendo]           = useState(false);
+  const [fervendo,                 setFervendo]                 = useState(false);
+  const [te088Quente,              setTe088Quente]              = useState(false);
+  const [fehlingAAdicionado,       setFehlingAAdicionado]       = useState(false);
+  const [fehlingBAdicionado,       setFehlingBAdicionado]       = useState(false);
+  const [nivelErlenmeyerTE,        setNivelErlenmeyerTE]        = useState(0);
+  const [corErlenmeyerDireitoFinal,setCorErlenmeyerDireitoFinal]= useState('#3b82f6');
+  const [, setGotasAzul]               = useState(0);
+  const [gotejandoAzul,            setGotejandoAzul]            = useState(false);
+  const [posicaoGotasAzul,         setPosicaoGotasAzul]         = useState([]);
+  const [transferindoBalaoParaBureta,setTransferindoBalaoParaBureta]=useState(false);
+  const [nivelBuretaDireita,       setNivelBuretaDireita]       = useState(0);
+  const [corBuretaDireita,         setCorBuretaDireita]         = useState('#ffffff');
+  const [gotejandoBuretaDireita,   setGotejandoBuretaDireita]   = useState(false);
+  const [posicaoGotasBureta,       setPosicaoGotasBureta]       = useState([]);
 
-
-  const ligarTE088 = () => {
-  if (etapaAtual !== 17) return;
-
-  setTe088Ligado(true);
-  setTe088Aquecendo(true);
-
-   // 🔽 AUMENTO SUAVE DO NÍVEL
+  // ── Click: ligar TE-088 (etapa 17) ───────────────────
+  const handleLigarTE088 = () => {
+    if (etapaAtual !== 17) return;
+    setTe088Ligado(true);
+    setTe088Aquecendo(true);
     setNivelErlenmeyerTE((prev) => Math.min(prev + 5, 25));
-
-  // inicia fervura visual
-  setFervendo(true);
-
-  // tempo de aquecimento (ex: 4s)
-  setTimeout(() => {
-    setTe088Aquecendo(false);
-    setFervendo(false);
-
-    setTe088Quente(true);
-
-    avancarEtapa();
-  }, 4000);
-};
-
-
-
-
-
-  const etapas = useMemo(() => [
-    { id: 0, titulo: "Montar Filtração",  descricao: "Arraste o funil para encaixar no coletor",  itemNecessario: "funil",  alvo: "coletor" },
-    { id: 1, titulo: "Filtrar Amostra",  descricao: "Arraste a amostra para o funil",  itemNecessario: "amostra",  alvo: "coletor"},
-    { id: 2, titulo: "Posicionar Balão na Balança", descricao: "Arraste o balão até a balança", itemNecessario: "balao", alvo: "balanca" },
-    { id: 3, titulo: "Pesar Amostra", descricao: "Arraste a amostra filtrada até a balança", itemNecessario: "coletor", alvo: "balanca" },
-    { id: 4, titulo: "Carregar Pipeta",descricao: "Arraste a pipeta de 20mL até o NaOH 20%", itemNecessario: "pipeta", alvo: "naoh"},
-    { id: 5, titulo: "Transferir NaOH", descricao: "Arraste a pipeta até o balão da bancada", itemNecessario: "pipeta",   alvo: "balao-bancada" },
-    { id: 6, titulo: "Aquecer no Microondas", descricao: "Arraste o balão até o microondas", itemNecessario: "balao", alvo: "microondas" },
-    { id: 7, titulo: "Carregar Pipeta com Açúcar Invertido",  descricao: "Arraste a pipeta até o Açúcar Invertido",  itemNecessario: "pipeta",  alvo: "acucar"},
-    { id: 8, titulo: "Transferir Açúcar Invertido",  descricao: "Arraste a pipeta até o balão da bancada",  itemNecessario: "pipeta",  alvo: "balao-bancada"},
-    { id: 9, titulo: "Adicionar Fenolftaleína",  descricao: "Arraste a Fenolftaleína até o balão da bancada",  itemNecessario: "fenol",  alvo: "balao-bancada"},
-    { id: 10, titulo: "Carregar Pipeta com HCl",  descricao: "Arraste a pipeta até o HCl",  itemNecessario: "pipeta",  alvo: "acido"},
-    { id: 11, titulo: "Titular com HCl",  descricao: "Goteje o HCl até atingir o ponto vermelho cereja",  itemNecessario: "pipeta",  alvo: "balao-bancada"},
-    { id: 12, titulo: 'Preparar EDTA 4%',  descricao: 'Leve a pipeta até o frasco de EDTA 4% e encha até a metade',  itemNecessario: 'pipeta',alvo: 'edta4',},
-    { id: 13, titulo: 'Adicionar EDTA 4%',  descricao: 'Leve a pipeta com EDTA 4% até o balão para neutralizar a solução',itemNecessario: 'pipeta',  alvo: 'balao-bancada',},
-    { id: 14, titulo: 'Completar volume com água',  descricao: 'Arraste a água até o balão e complete o volume até o menisco',  itemNecessario: 'agua',  alvo: 'balao-bancada',},
-    { id: 15,  titulo: 'Adicionar Fehling A ao TE-088',  descricao: 'Leve o Fehling A até o Determinador TE-088',itemNecessario: 'fehlingA',  alvo: 'te088'},
-    { id: 16,  titulo: 'Adicionar Fehling B ao TE-088',  descricao: 'Leve o Fehling B até o Determinador TE-088',itemNecessario: 'fehlingB',  alvo: 'te088',},
-    { id: 17,  titulo: 'Ligar Determinador TE-088',  descricao: 'Clique no Determinador TE-088 para iniciar o aquecimento',  alvo: 'te088'},
-    { id: 18,  titulo: 'Adicionar Azul de Metileno',  descricao: 'Leve a pipeta até o Azul de Metileno e encha-a',itemNecessario: 'pipeta',  alvo: 'azul-metileno',},
-    { id: 19,  titulo: 'adicionar 3 gotas de azul de metileno no TE-088 ', descricao: 'Leve a pipeta com Azul de Metileno até o TE-088',itemNecessario: 'pipeta',alvo: 'te088'},
-    { id: 20,  titulo: 'Transferir solução para a bureta do TE-088',  descricao: 'Leve o balão da bancada até o TE-088',  itemNecessario: 'balao',  alvo: 'te088'},
-    { id: 21,  titulo: 'Realizar titulação na bureta',  descricao: 'Clique na bureta direita para iniciar a titulação',  alvo: 'bureta-direita'},
-
-
-  ], []);
-
-  const avancarEtapa = useCallback((etapaEsperada = null) => {
-    setEtapaAtual((prev) => {
-      if (etapaEsperada !== null && prev !== etapaEsperada) {
-        return prev;
-      }
-
-      if (prev >= etapas.length - 1) {
-        return prev;
-      }
-
-      setPontuacao((pontos) => pontos + 100);
-      setMostrarParabens(true);
-      setTimeout(() => setMostrarParabens(false), 2000);
-
-      return prev + 1;
-    });
-  }, [etapas.length]);
-
-  const finalizarAnalise = useCallback(() => {
-    if (concluido) return;
-
-    const volumeCalculado = Number((47.1 + Math.random() * 3.8).toFixed(1));
-    const artCalculado = Number((volumeCalculado * 0.0215).toFixed(2));
-
-    setVolumeGasto(volumeCalculado);
-    setArtPercentual(artCalculado);
-    setConcluido(true);
-    setPontuacao((pontos) => pontos + 100);
-    setMostrarParabens(true);
-    setTimeout(() => setMostrarParabens(false), 2000);
-  }, [concluido]);
-
-  const handleDragStart = (item, e) => {
-  if (pesando && etapaAtual <= 3)  return; // ⛔ bloqueia drag durante pesagem
-  setItemSegurado(item);
-  e.dataTransfer.effectAllowed = 'move';
-};
-
-  const handleDragEnd = () => {
-    setItemSegurado(null);
+    setFervendo(true);
+    setTimeout(() => {
+      setTe088Aquecendo(false);
+      setTe088Quente(true);
+      avancarEtapa();
+    }, 4000);
   };
 
- const handleDrop = (alvo, e) => {
-  e.preventDefault();
-
-  // 🔹 ETAPA 0 — FUNIL NO COLETOR
-  if (itemSegurado === 'funil' && alvo === 'coletor' && etapaAtual === 0) {
-    setFunilPosicionado(true);
-
-    setTimeout(() => {
-      setFunilEncaixado(true);
-    }, 700);
-
-    avancarEtapa();
-    setItemSegurado(null);
-    return;
-  }
-
-  // 🔹 ETAPA 1 — FILTRAÇÃO
-  if (
-    itemSegurado === 'amostra' &&
-    alvo === 'coletor' &&
-    funilEncaixado &&
-    etapaAtual === 1
-  ) {
-    setFiltrando(true);
-    avancarEtapa();
-    setItemSegurado(null);
-    return;
-  }
-
-  // 🔹 ETAPA 2 — BALÃO NA BALANÇA (⚠️ TEM QUE VIR ANTES DO GENÉRICO)
-  if (
-    itemSegurado === 'balao' &&
-    alvo === 'balanca' &&
-    etapaAtual === 2
-  ) {
-    setBalaoPosicionado(true);
-      setBalaoEncaixado(true);
-      
-   
-
-    avancarEtapa();
-    setItemSegurado(null);
-    return;
-  }
-    // 🔹 ETAPA 3 — COLETOR NA BALANÇA → INICIA TRANSFERÊNCIA
-  if (
-    itemSegurado === 'coletor' &&
-    alvo === 'balanca' &&
-    etapaAtual === 3
-  ) {
-    setTimeout(()=>{
-      setTransferindo(true);
-      setPesando(true);
-
-    }, 600);
-
-    avancarEtapa();
-    setItemSegurado(null);
-    return;
-  }
-  // 🔹 ETAPA 4 — PIPETA NO NaOH
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'naoh' &&
-  etapaAtual === 4 &&
-  !pipetaCheia
-) {
-  setPipetaCheia(true);
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-
-
-
-// 🔹 ETAPA 5 — PIPETA NO BALÃO DA BANCADA
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 5 &&
-  pipetaCheia
-) {
-  setTransferindoPipeta(true);
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-// 🔹 ETAPA 6 — BALÃO NO MICROONDAS
-if (
-  itemSegurado === 'balao' &&
-  alvo === 'microondas' &&
-  etapaAtual === 6
-) {
-  setBalaoNoMicroondas(true);
-  setAquecendo(true);
-  setTempoMicroondas(30); // começa em 30s
-
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 7 — PIPETA NO AÇÚCAR INVERTIDO
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'acucar' &&
-  etapaAtual === 7 &&
-  !pipetaAcucarCheia
-) {
-  setPipetaAcucarCheia(true);
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 8 — TRANSFERIR AÇÚCAR PARA O BALÃO
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 8 &&
-  pipetaAcucarCheia
-) {
-  setTransferindoPipetaAcucar(true);
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-// 🔹 ETAPA 9 — FENOLFTALEÍNA NO BALÃO
-if (
-  itemSegurado === 'fenol' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 9
-) {
-  setAdicionandoFenol(true);
-  setGotasFenol(0);
-  setItemSegurado(null);
-  return;
-}
-// 🔹 ETAPA 10 — CARREGAR PIPETA COM HCl
-// Importante: não avança imediatamente. A etapa só muda depois
-// que a animação visual da pipeta cheia terminar no useEffect.
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'acido' &&
-  etapaAtual === 10 &&
-  !pipetaHClCheia
-) {
-  setNivelPipetaHCl(0);
-  setNivelAlvoPipetaHCl(100);
-  setPipetaHClCheia(true);
-  setItemSegurado(null);
-  return;
-}
-
-
-// 🔹 ETAPA 11 — TITULAÇÃO COM HCl
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 11 &&
-  pipetaHClCheia
-) {
-  setTitulando(true);
-  setAgitacao(true);
-  setItemSegurado(null);
-  return;
-}
-
-  // 🔹 ETAPA 12 — ENCHER PIPETA COM HCl ATÉ 50%
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'edta4' &&
-  etapaAtual === 12
-) {
-  setNivelPipetaHCl(0);          // começa vazia
-  setNivelAlvoPipetaHCl(50);     // 🎯 meta = metade
-  setPipetaHClCheia(true);
-  setItemSegurado(null);
-
-  avancarEtapa();
-  return;
-}
-// 🔹 ETAPA 13 — EDTA 4% NO BALÃO (REVERSÃO DA COR)
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 13 &&
-  pipetaHClCheia // mesma pipeta que foi usada no EDTA
-) {
-  setGotasEDTA(0);
-  setGotejandoEDTA(true);
-  setAgitacao(true);
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 14 — COMPLETAR COM ÁGUA ATÉ O MENISCO
-if (
-  itemSegurado === 'agua' &&
-  alvo === 'balao-bancada' &&
-  etapaAtual === 14
-) {
-  setAdicionandoAgua(true);
-  setDiluindo(true);
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 15 — FEHLING A NO TE-088
-// Importante: não avança imediatamente. Mantém a etapa visível
-// por alguns instantes e depois libera a etapa 16.
-if (
-  itemSegurado === 'fehlingA' &&
-  alvo === 'te088' &&
-  etapaAtual === 15 &&
-  !fehlingAAdicionado
-) {
-  setFehlingAAdicionado(true);
-
-  // cria nível baixo e branco no erlenmeyer
-  setNivelErlenmeyerTE(15); // 🔽 bem baixo, visual realista
-  setCorErlenmeyerDireitoFinal('#f8fafc');
-
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 16 — FEHLING B NO TE-088
-if (
-  itemSegurado === 'fehlingB' &&
-  alvo === 'te088' &&
-  etapaAtual === 16
-) {
-  setFehlingBAdicionado(true);
-
-  // 🔼 sobe MAIS um pouco o nível do erlenmeyer
-  setNivelErlenmeyerTE((prev) => Math.min(prev + 5, 35));
-  setCorErlenmeyerDireitoFinal('#f8fafc');
-
-  avancarEtapa();
-  setItemSegurado(null);
-  return;
-}
-
-
-// 🔹 ETAPA 18 — PIPETA NO AZUL DE METILENO
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'azul-metileno' &&
-  etapaAtual === 18 &&
-  !pipetaAzulCheia
-) {
-  setNivelPipetaAzul(0);
-  setPipetaAzulCheia(true);
-  setItemSegurado(null);
-
-  avancarEtapa();
-  return;
-}
-
-// 🔹 ETAPA 19 — AZUL DE METILENO → TE-088
-if (
-  itemSegurado === 'pipeta' &&
-  alvo === 'te088' &&
-  etapaAtual === 19 &&
-  pipetaAzulCheia
-) {
-  // inicia gotejamento
-setPosicaoGotasAzul([]);
-setGotasAzul(0);
-setGotejandoAzul(true);
-
-  // pipeta começa a esvaziar
-  setPipetaAzulCheia(false);
-  setNivelPipetaAzul(0);
-
-  setItemSegurado(null);
-  return;
-}
-
-// 🔹 ETAPA 20 — BALÃO → BURETA DO TE-088
-if (
-  itemSegurado === 'balao' &&
-  alvo === 'te088' &&
-  etapaAtual === 20
-) {
-  // inicia transferência
-  setTransferindoBalaoParaBureta(true);
-
-  // a bureta herda a cor atual do balão
-  setCorBuretaDireita(
-    corBalao === 'amber' ? '#f59e0b' :
-    corBalao === 'orange' ? '#fb923c' :
-    corBalao === 'pink' ? '#ec4899' :
-    corBalao === 'rose' ? '#f43f5e' :
-    corBalao === 'cherry' ? '#7f1d1d' :
-    '#3b82f6'
-  );
-
-  setItemSegurado(null);
-  return;
-}
-
-
-  // 🔹 REGRA GENÉRICA (somente depois)
-
-  
-  if (
-    itemSegurado === etapas[etapaAtual]?.itemNecessario &&
-    alvo === etapas[etapaAtual]?.alvo
-  ) {
-    if (alvo === 'balanca') {
-      setPesando(true);
-    }
-
-    avancarEtapa();
-    setItemSegurado(null);
-    return;
-  }
-
-  setItemSegurado(null);
-};
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-    React.useEffect(() => {
-    if (!filtrando) return;
-
-    const intervalo = setInterval(() => {
-        setNivelColetor((prev) => {
-       if (prev >= 100) {
-            clearInterval(intervalo);
-            setFiltrando(false);
-
-            // dispara retorno do funil
-            setFunilVoltando(true);
-
-            return 100;
-          }
-
-        return prev + 5;
-        });
-    }, 200);
-
-    return () => clearInterval(intervalo);
-    }, [filtrando]);
-    React.useEffect(() => {
-  if (!filtrando) return;
-
-  const intervalo = setInterval(() => {
-    setNivelAmostra((prev) => {
-      if (prev <= 0) {
-        clearInterval(intervalo);
-        return 0;
-      }
-      return prev - 5;
-    });
-  }, 200);
-
-  return () => clearInterval(intervalo);
-}, [filtrando]);
-
-
-React.useEffect(() => {
-  if (!funilVoltando) return;
-
-  // primeiro desenxaixa
-  setFunilEncaixado(false);
-
-  // depois remove do coletor e volta para lateral
-  setTimeout(() => {
-    setFunilPosicionado(false);
-    setFunilVoltando(false);
-  }, 700);
-}, [funilVoltando]);
-
-    React.useEffect(() => {
-    if (!pesando) return;
-
-    let valor = 0;
-
-    const intervalo = setInterval(() => {
-        valor += 1;
-        setPeso(valor);
-
-        if (valor >= 50) {
-        clearInterval(intervalo);
-        setPesando(false);
-        }
-    }, 100);
-
-    return () => clearInterval(intervalo);
-    }, [pesando]);
-
-    React.useEffect(() => {
-  if (!pipetaCheia) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipeta((prev) => {
-      if (prev >= 100) {
-        clearInterval(intervalo);
-        return 100;
-      }
-      return prev + 5;
-    });
-  }, 150);
-
-  return () => clearInterval(intervalo);
-}, [pipetaCheia]);
-
-React.useEffect(() => {
-  if (!pipetaAcucarCheia) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipetaAcucar((prev) => {
-      if (prev >= 100) {
-        clearInterval(intervalo);
-        return 100;
-      }
-      return prev + 5;
-    });
-  }, 150);
-
-  return () => clearInterval(intervalo);
-}, [pipetaAcucarCheia]);
-
-React.useEffect(() => {
-  if (!transferindoPipeta) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipeta((prev) => {
-      if (prev <= 0) {
-        clearInterval(intervalo);
-        setTransferindoPipeta(false);
-        setPipetaCheia(false);
-
-        // ✅ SOBE UM POUCO O LÍQUIDO DO BALÃO DA BANCADA
-        setNivelBalao((balaoPrev) =>
-          Math.min(balaoPrev + 12, 100)
-        );
-
-        return 0;
-      }
-      return prev - 5;
-    });
-  }, 150);
-
-  return () => clearInterval(intervalo);
-}, [transferindoPipeta]);
-
-    React.useEffect(() => {
-  if (!transferindo) return;
-
-  const intervalo = setInterval(() => {
-    setNivelColetor((prev) => {
-      if (prev <= 0) {
-      clearInterval(intervalo);
-      setTransferindo(false);
-
-      // ⏱️ pequena pausa para finalizar animação
-      setTimeout(() => {
-        setBalaoEncaixado(false);
-        setBalaoPosicionado(false);
-      }, 600);
-
-      return 0;
-    }
-      return prev - 5;
+  // ── Drag / drop ───────────────────────────────────────
+  const { handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
+    useSimuladorDragART({
+      etapaAtual, itemSegurado, setItemSegurado, avancarEtapa,
+      pesando, funilEncaixado,
+      pipetaCheia, pipetaAcucarCheia, pipetaHClCheia, pipetaAzulCheia,
+      fehlingAAdicionado, corBalao,
+      setFunilPosicionado, setFunilEncaixado, setFiltrando,
+      setBalaoPosicionado, setBalaoEncaixado, setTransferindo, setPesando,
+      setPipetaCheia, setTransferindoPipeta,
+      setBalaoNoMicroondas, setAquecendo, setTempoMicroondas,
+      setPipetaAcucarCheia, setTransferindoPipetaAcucar,
+      setAdicionandoFenol, setGotasFenol,
+      setNivelPipetaHCl, setNivelAlvoPipetaHCl, setPipetaHClCheia,
+      setTitulando, setAgitacao,
+      setGotasEDTA, setGotejandoEDTA,
+      setAdicionandoAgua, setDiluindo,
+      setFehlingAAdicionado, setNivelErlenmeyerTE, setCorErlenmeyerDireitoFinal,
+      setFehlingBAdicionado,
+      setNivelPipetaAzul, setPipetaAzulCheia,
+      setPosicaoGotasAzul, setGotasAzul, setGotejandoAzul,
+      setTransferindoBalaoParaBureta, setCorBuretaDireita,
     });
 
-    setNivelBalao((prev) => {
-      if (prev >= 100) return 100;
-      return prev + 5;
-    });
-  }, 260);
-
-  return () => clearInterval(intervalo);
-}, [transferindo]);
-
-React.useEffect(() => {
-  if (!transferindoPipetaAcucar) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipetaAcucar((prev) => {
-      if (prev <= 0) {
-        clearInterval(intervalo);
-        setTransferindoPipetaAcucar(false);
-        setPipetaAcucarCheia(false);
-
-        // 🍬 AUMENTA O NÍVEL DO BALÃO
-        setNivelBalao((balaoPrev) =>
-          Math.min(balaoPrev + 10, 100)
-        );
-
-        return 0;
-      }
-      return prev - 5;
-    });
-  }, 150);
-
-  return () => clearInterval(intervalo);
-}, [transferindoPipetaAcucar]);
-
-React.useEffect(() => {
-  if (!aquecendo) return;
-
-  // 30 → 0 em 3 segundos
-  // 30 passos, cada passo = 100ms
-  const intervalo = setInterval(() => {
-    setTempoMicroondas((prev) => {
-    if (prev <= 1) {
-  clearInterval(intervalo);
-  setAquecendo(false);
-
-  setBalaoNoMicroondas(false);
-  setBalaoPosicionado(false);
-
-  // 🔥 ATIVA ESTADO DE AMOSTRA QUENTE
-  setAmostraQuente(true);
-  setMostrarAvisoResfriamento(true);
-
-  // ⏱️ após alguns segundos, esfria
-  setTimeout(() => {
-    setAmostraQuente(false);
-    setMostrarAvisoResfriamento(false);
-  }, 4000); // 4 segundos
-
-  return 0;
-}
-      return prev - 1;
-    });
-  }, 100); // 100ms × 30 = 3s
-
-  return () => clearInterval(intervalo);
-}, [aquecendo]);
-
-React.useEffect(() => {
-  if (!adicionandoFenol) return;
-
-  const intervalo = setInterval(() => {
-    setGotasFenol((prev) => {
-      if (prev >= 3) {
-        clearInterval(intervalo);
-        setAdicionandoFenol(false);
-
-        // 🎉 AGORA SIM: sucesso da etapa
-        avancarEtapa(9);
-
-        return 3;
-      }
-      return prev + 1;
-    });
-  }, 1000); // ✅ 1 gota por segundo
-
-  return () => clearInterval(intervalo);
-}, [adicionandoFenol, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!pipetaHClCheia) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipetaHCl((prev) => {
-      if (prev >= nivelAlvoPipetaHCl) {
-        clearInterval(intervalo);
-        return nivelAlvoPipetaHCl;
-      }
-      return prev + 5;
-    });
-  }, 150);
-
-  return () => clearInterval(intervalo);
-}, [pipetaHClCheia, nivelAlvoPipetaHCl]);
-
-React.useEffect(() => {
-  if (
-    etapaAtual !== 10 ||
-    !pipetaHClCheia ||
-    nivelAlvoPipetaHCl !== 100 ||
-    nivelPipetaHCl < 100
-  ) {
-    return;
-  }
-
-  const timeout = setTimeout(() => {
-    avancarEtapa(10);
-  }, 350);
-
-  return () => clearTimeout(timeout);
-}, [etapaAtual, pipetaHClCheia, nivelPipetaHCl, nivelAlvoPipetaHCl, avancarEtapa]);
-
-React.useEffect(() => {
-  if (etapaAtual !== 15 || !fehlingAAdicionado) return;
-
-  const timeout = setTimeout(() => {
-    avancarEtapa(15);
-  }, 650);
-
-  return () => clearTimeout(timeout);
-}, [etapaAtual, fehlingAAdicionado, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!titulando) return;
-
-  const cores = [
-    'amber',       // inicial
-    'orange',
-    'pink',
-    'rose',
-    'cherry'       // vermelho cereja
-  ];
-
-  let passo = 0;
-
-  const intervalo = setInterval(() => {
-    // ↓ esvazia pipeta
-    setNivelPipetaHCl((prev) => Math.max(prev - 2,0));
-
-    // ↓ muda a cor do balão gradualmente
-    setCorBalao(cores[passo]);
-
-    passo++;
-
-    if (passo >= cores.length) {
-      clearInterval(intervalo);
-      setTitulando(false);
-      setAgitacao(false);
-      setPipetaHClCheia(false);
-
-      // 🎉 sucesso
-      avancarEtapa();
-    }
-  }, 800); // ritmo realista de gotejamento
-
-  return () => clearInterval(intervalo);
-}, [titulando, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!neutralizandoEDTA) return;
-
-  const coresReversao = [
-    'rose',
-    'pink',
-    'orange',
-    'amber'
-  ];
-
-  let passo = 0;
-
-  const intervalo = setInterval(() => {
-    setCorBalao(coresReversao[passo]);
-    passo++;
-
-    if (passo >= coresReversao.length) {
-      clearInterval(intervalo);
-
-      setNeutralizandoEDTA(false);
-      setAgitacao(false);
-      setPipetaHClCheia(false);
-
-      avancarEtapa();
-    }
-  }, 700); // suave e realista
-
-  return () => clearInterval(intervalo);
-}, [neutralizandoEDTA, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!gotejandoEDTA) return;
-
-  const intervalo = setInterval(() => {
-    setGotasEDTA((prev) => {
-      const novaQtd = prev + 1;
-
-      // 💧 diminui um pouco o nível da pipeta a cada gota
-      setNivelPipetaHCl((nivel) => Math.max(nivel - 8, 0));
-
-      if (novaQtd >= 3) {
-        clearInterval(intervalo);
-        setGotejandoEDTA(false);
-
-        // ✅ após 3 gotas → neutraliza
-        setNeutralizandoEDTA(true);
-      }
-
-      return novaQtd;
-    });
-  }, 900); // 1 gota por segundo (realista)
-
-  return () => clearInterval(intervalo);
-}, [gotejandoEDTA]);
-
-React.useEffect(() => {
-  if (!adicionandoAgua) return;
-
-  const intervalo = setInterval(() => {
-    setNivelBalao((prev) => {
-      if (prev >= nivelAlvoBalao) {
-        clearInterval(intervalo);
-        setAdicionandoAgua(false);
-        setDiluindo(false);
-
-        avancarEtapa(14);
-        return nivelAlvoBalao;
-      }
-      return prev + 2; // subida lenta e realista
-    });
-  }, 120);
-
-  return () => clearInterval(intervalo);
-}, [adicionandoAgua, nivelAlvoBalao, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!pipetaAzulCheia) return;
-
-  const intervalo = setInterval(() => {
-    setNivelPipetaAzul((prev) => {
-      if (prev >= 100) {
-        clearInterval(intervalo);
-        return 100;
-      }
-      return prev + 5;
-    });
-  }, 120);
-
-  return () => clearInterval(intervalo);
-}, [pipetaAzulCheia]);
-
-React.useEffect(() => {
-  if (!gotejandoAzul) return;
-
-  const intervalo = setInterval(() => {
-    setPosicaoGotasAzul((prev) => {
-      const novas = [...prev];
-
-      // adiciona nova gota
-      if (novas.length < 3) {
-        novas.push(230);
-      }
-
-      // faz todas caírem
-      return novas.map((y) => y + 6);
-    });
-  }, 80);
-
-  return () => clearInterval(intervalo);
-}, [gotejandoAzul]);
-
-React.useEffect(() => {
-  const yLiquido = 320 - nivelErlenmeyerTE;
-
-  const todasAbsorvidas =
-    posicaoGotasAzul.length === 3 &&
-    posicaoGotasAzul.every((y) => y >= yLiquido);
-
-  if (todasAbsorvidas) {
-    setGotejandoAzul(false);
-    setPosicaoGotasAzul([]);
-    setCorErlenmeyerDireitoFinal('#2563eb');
-
-    setTimeout(() => {
-            avancarEtapa();
-    }, 400);
-  }
-}, [posicaoGotasAzul, nivelErlenmeyerTE, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!transferindoBalaoParaBureta) return;
-
-  const intervalo = setInterval(() => {
-    setNivelBalao((prev) => {
-      if (prev <= 50) {
-        clearInterval(intervalo);
-
-        setTransferindoBalaoParaBureta(false);
-
-        // garante nível da bureta cheio
-        setNivelBuretaDireita(100);
-
-        avancarEtapa();
-
-        return 50;
-      }
-      return prev - 2; // esvaziamento gradual
-    });
-
-    setNivelBuretaDireita((prev) =>
-      Math.min(prev + 2, 100)
-    );
-  }, 120);
-
-  return () => clearInterval(intervalo);
-}, [transferindoBalaoParaBureta, avancarEtapa]);
-
-React.useEffect(() => {
-  if (!gotejandoBuretaDireita) return;
-
-  const intervalo = setInterval(() => {
-    setNivelBuretaDireita((prev) => {
-      const novoNivel = prev - 1;
-
-      // Quando chegar a 10%
-      if (novoNivel <= 10) {
-        clearInterval(intervalo);
-
-        setGotejandoBuretaDireita(false);
-      
-
-        // 🔴 muda para vermelho tijolo
-        setCorErlenmeyerDireitoFinal('#b91c1c');
-
-        finalizarAnalise();
-
-        return 10;
-      }
-
-      return novoNivel;
-    });
-  }, 120);
-
-  return () => clearInterval(intervalo);
-}, [gotejandoBuretaDireita, finalizarAnalise]);
-
-React.useEffect(() => {
-  if (!gotejandoBuretaDireita) return;
-
-  const intervalo = setInterval(() => {
-    setPosicaoGotasBureta((prev) => {
-      const novas = [...prev];
-
-      if (novas.length < 1) {
-        novas.push(200);
-      }
-
-      const yLiquido = 320 - nivelErlenmeyerTE;
-
-      const atualizadas = novas.map((y) => y + 10);
-
-      const atingiu = atualizadas.some((y) => y >= yLiquido);
-
-      if (atingiu) {
-        return [];
-      }
-
-      return atualizadas;
-    });
-  }, 60);
-
-  return () => clearInterval(intervalo);
-}, [gotejandoBuretaDireita, nivelErlenmeyerTE]);
-
-
-
-  const [estrelas] = useState(() =>
-  Array.from({ length: 30 }, (_, i) => ({
-    id: i,
-    left: `${Math.random() * 100}%`,
-    top: `${Math.random() * 100}%`,
-    delay: `${Math.random() * 0.5}s`,
-  }))
-);
-
-
+  // ── Hooks de animação ─────────────────────────────────
+  useARTTransferencias({
+    filtrando, setFiltrando, setNivelColetor, setNivelAmostra, setFunilVoltando,
+    funilVoltando, setFunilEncaixado, setFunilPosicionado,
+    pesando, setPesando, setPeso,
+    pipetaCheia, setNivelPipeta, setPipetaCheia,
+    pipetaAcucarCheia, setNivelPipetaAcucar, setPipetaAcucarCheia,
+    transferindoPipeta, setTransferindoPipeta, setNivelBalao,
+    transferindo, setTransferindo, setBalaoEncaixado, setBalaoPosicionado,
+    transferindoPipetaAcucar, setTransferindoPipetaAcucar,
+  });
+
+  useARTReacoes({
+    aquecendo, setTempoMicroondas, setAquecendo,
+    setBalaoNoMicroondas, setBalaoPosicionado,
+    setAmostraQuente, setMostrarAvisoResfriamento,
+    adicionandoFenol, setGotasFenol, setAdicionandoFenol,
+    pipetaHClCheia, setNivelPipetaHCl, nivelAlvoPipetaHCl,
+    etapaAtual, nivelPipetaHCl, fehlingAAdicionado,
+    titulando, setTitulando, setCorBalao, setAgitacao, setPipetaHClCheia,
+    neutralizandoEDTA, setNeutralizandoEDTA,
+    gotejandoEDTA, setGotasEDTA, setGotejandoEDTA,
+    adicionandoAgua, nivelAlvoBalao, setNivelBalao, setAdicionandoAgua, setDiluindo,
+    avancarEtapa,
+  });
+
+  useARTTE088({
+    pipetaAzulCheia, setNivelPipetaAzul,
+    gotejandoAzul, setGotejandoAzul, setPosicaoGotasAzul,
+    posicaoGotasAzul, nivelErlenmeyerTE, setCorErlenmeyerDireitoFinal,
+    transferindoBalaoParaBureta, setTransferindoBalaoParaBureta,
+    setNivelBalao, setNivelBuretaDireita,
+    gotejandoBuretaDireita, setGotejandoBuretaDireita, setPosicaoGotasBureta,
+    avancarEtapa, finalizarAnalise,
+  });
+
+  // ── Helpers de etapa (padrão ArtMosto) ───────────────
+  const isItem  = (id) => etapas[etapaAtual]?.itemNecessario === id;
+  const isAlvo  = (id) => etapas[etapaAtual]?.alvo === id;
+  const itemCls = (id) => isItem(id) ? 'pulse-item' : '';
+  const dropCls = (id) => isAlvo(id) ? 'drop-target' : '';
+
+  // ── Derivados da pipeta ───────────────────────────────
+  const nivelPipetaAtual = pipetaAzulCheia ? nivelPipetaAzul
+    : pipetaHClCheia   ? nivelPipetaHCl
+    : pipetaAcucarCheia? nivelPipetaAcucar
+    : nivelPipeta;
+  const corPipetaAtual = pipetaAzulCheia ? 'rgba(30,64,175,0.85)'
+    : pipetaHClCheia   ? 'rgba(200,60,50,0.78)'
+    : pipetaAcucarCheia? 'rgba(59,130,246,0.75)'
+    : pipetaCheia      ? 'rgba(147,197,253,0.75)'
+    : 'rgba(140,200,240,0.65)';
+  const pipetaCarregada = pipetaAzulCheia || pipetaHClCheia || pipetaAcucarCheia || pipetaCheia;
+
+  // ── Cor do balão da bancada ───────────────────────────
+  const corBalaoRgba = diluindo          ? 'rgba(245,200,120,0.68)'
+    : corBalao === 'amber'  ? 'rgba(180,83,9,0.72)'
+    : corBalao === 'orange' ? 'rgba(194,65,12,0.72)'
+    : corBalao === 'pink'   ? 'rgba(190,24,93,0.72)'
+    : corBalao === 'rose'   ? 'rgba(190,18,60,0.72)'
+    : 'rgba(127,29,29,0.88)';
+
+  const balaoNaBancada  = !balaoPosicionado && !balaoNoMicroondas;
+  const buretaClicavel  = etapaAtual === 21 && !gotejandoBuretaDireita;
+  const te088Clicavel   = etapaAtual === 17 && !te088Ligado;
+
+
+  /* ═══════════════════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════════════════ */
   return (
-    <>
-      
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg,#0a0f1a,#0d1f35,#0a1628)',
+      padding: 16, fontFamily: "'Segoe UI', sans-serif",
+    }}>
+
+      {/* ── OVERLAY PARABÉNS ── */}
       {mostrarParabens && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 text-white px-12 py-8 rounded-3xl shadow-2xl animate-bounce border-4 border-white">
-            <div className="flex items-center gap-4">
-              <Star className="w-12 h-12" fill="currentColor" />
-              <div>
-                <h3 className="text-3xl font-bold">Parabéns!</h3>
-                <p className="text-xl">+100 pontos</p>
-              </div>
-              <CheckCircle className="w-12 h-12" />
+        <div style={{ position: 'fixed', top: 18, right: 24, zIndex: 60, pointerEvents: 'none' }}>
+          <div style={{ background: 'linear-gradient(135deg,#f59e0b,#ef4444,#8b5cf6)', color: 'white', padding: '20px 36px', borderRadius: 22, boxShadow: '0 16px 40px rgba(0,0,0,0.35)', border: '2px solid rgba(255,255,255,0.9)', textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Star size={30} fill="currentColor" />
+              <div><h3 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Parabéns!</h3><p style={{ fontSize: 15, margin: 0 }}>+100 pontos</p></div>
+              <CheckCircle size={30} />
             </div>
           </div>
-          <div className="absolute inset-0">
-          {estrelas.map((estrela) => (
-  <Star
-    key={estrela.id}
-    className="absolute text-yellow-400 animate-ping"
-    fill="currentColor"
-    style={{
-      left: estrela.left,
-      top: estrela.top,
-      width: '24px',
-      animationDelay: estrela.delay,
-    }}
-  />
-))}
+          {/* Estrelas de fundo */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {estrelas?.map((e) => (
+              <Star key={e.id} fill="#fbbf24" style={{ position: 'absolute', left: e.left, top: e.top, width: 20, color: '#fbbf24', animationDelay: e.delay }} className="animate-ping" />
+            ))}
           </div>
         </div>
       )}
 
-      
+      {/* ── BANNER: aguardar resfriamento ── */}
+      {mostrarAvisoResfriamento && (
+        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 55, pointerEvents: 'none' }}>
+          <div style={{ background: 'linear-gradient(135deg,#7f1d1d,#b91c1c,#ef4444)', color: 'white', padding: '12px 28px', borderRadius: 16, border: '2px solid rgba(255,255,255,0.75)', textAlign: 'center' }}>
+            <div style={{ fontSize: 16, fontWeight: 900 }}>🔥 Aguarde a amostra atingir temperatura ambiente</div>
+          </div>
+        </div>
+      )}
+
       {/* ── MODAL CONCLUÍDO ── */}
       {concluido && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.80)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 70,
-            padding: 16,
-          }}
-        >
-          <div
-            style={{
-              background: 'linear-gradient(135deg,#1e3a5f,#0d2137)',
-              border: '2px solid #00e5ff',
-              borderRadius: 22,
-              padding: '30px 38px',
-              textAlign: 'center',
-              color: 'white',
-              maxWidth: 650,
-              width: '100%',
-              boxShadow: '0 0 42px rgba(0,229,255,0.22)',
-            }}
-          >
-            <div style={{ fontSize: 52, lineHeight: 1 }}>🧪</div>
-            <h2 style={{ fontSize: 28, fontWeight: 900, color: '#00e5ff', margin: '10px 0 4px' }}>
-              Análise Concluída!
-            </h2>
-            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 18 }}>
-              Resultado final da análise de ART da dorna
-            </p>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.80)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 16 }}>
+          <div style={{ background: 'linear-gradient(135deg,#1e3a5f,#0d2137)', border: '2px solid #00e5ff', borderRadius: 22, padding: '30px 38px', textAlign: 'center', color: 'white', maxWidth: 650, width: '100%', boxShadow: '0 0 42px rgba(0,229,255,0.22)' }}>
+            <div style={{ fontSize: 52 }}>🧪</div>
+            <h2 style={{ fontSize: 28, fontWeight: 900, color: '#00e5ff', margin: '10px 0 4px' }}>Análise Concluída!</h2>
+            <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 18 }}>Resultado final da análise de ART da dorna</p>
 
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'stretch',
-                gap: 18,
-                flexWrap: 'wrap',
-                marginBottom: 18,
-              }}
-            >
-              <div
-                style={{
-                  background: 'rgba(0,229,255,0.08)',
-                  border: '1px solid rgba(0,229,255,0.3)',
-                  borderRadius: 14,
-                  padding: '14px 22px',
-                  minWidth: 250,
-                }}
-              >
-                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                  Volume gasto na bureta
-                </div>
-
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 18, flexWrap: 'wrap', marginBottom: 18 }}>
+              <div style={{ background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.3)', borderRadius: 14, padding: '14px 22px', minWidth: 250 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>Volume gasto na bureta</div>
                 <div style={{ width: 128, height: 238, margin: '0 auto 8px', position: 'relative' }}>
-                  <svg width="128" height="238" viewBox="0 0 128 238" role="img" aria-label="Bureta volumétrica">
-                    <defs>
-                      <linearGradient id="buretaGlass" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0" stopColor="#e0f2fe" stopOpacity="0.14" />
-                        <stop offset="0.22" stopColor="#ffffff" stopOpacity="0.44" />
-                        <stop offset="0.50" stopColor="#7dd3fc" stopOpacity="0.10" />
-                        <stop offset="0.78" stopColor="#ffffff" stopOpacity="0.22" />
-                        <stop offset="1" stopColor="#0891b2" stopOpacity="0.18" />
-                      </linearGradient>
-                      <linearGradient id="buretaLiquido" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#7dd3fc" stopOpacity="0.95" />
-                        <stop offset="0.55" stopColor="#0ea5e9" stopOpacity="0.88" />
-                        <stop offset="1" stopColor="#0369a1" stopOpacity="0.92" />
-                      </linearGradient>
-                      <filter id="buretaGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2.5" result="blur" />
-                        <feMerge>
-                          <feMergeNode in="blur" />
-                          <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                      </filter>
-                    </defs>
-
-                    {/* haste de suporte */}
-                    <line x1="22" y1="14" x2="22" y2="218" stroke="#64748b" strokeWidth="4" strokeLinecap="round" />
-                    <rect x="12" y="34" width="25" height="9" rx="3" fill="#94a3b8" stroke="#334155" strokeWidth="1" />
-                    <rect x="12" y="144" width="25" height="9" rx="3" fill="#94a3b8" stroke="#334155" strokeWidth="1" />
-
-                    {/* tubo da bureta */}
-                    <rect x="48" y="12" width="27" height="172" rx="8" fill="url(#buretaGlass)" stroke="#67e8f9" strokeWidth="2.3" />
-
-                    {/* líquido */}
-                    {(() => {
-                      const normalizado = Math.min(Math.max(((volumeGasto || 47.1) - 47.1) / 3.8, 0), 1);
-                      const alturaLiquido = 58 + normalizado * 86;
-                      const yLiquido = 184 - alturaLiquido;
-
-                      return (
-                        <>
-                          <rect
-                            x="50.6"
-                            y={yLiquido}
-                            width="21.8"
-                            height={alturaLiquido}
-                            fill="url(#buretaLiquido)"
-                            opacity="0.82"
-                          />
-                          <path
-                            d={`M 51 ${yLiquido + 1.8} Q 61.5 ${yLiquido - 3.2} 72 ${yLiquido + 1.8}`}
-                            fill="none"
-                            stroke="#e0f2fe"
-                            strokeWidth="1.6"
-                            opacity="0.9"
-                          />
-                        </>
-                      );
-                    })()}
-
-                    {/* brilhos do vidro */}
-                    <rect x="53" y="18" width="4" height="158" rx="2" fill="#ffffff" opacity="0.30" />
-                    <rect x="67" y="22" width="2" height="150" rx="1" fill="#ffffff" opacity="0.18" />
-
-                    {/* graduações */}
-                    {Array.from({ length: 21 }, (_, i) => {
-                      const y = 22 + i * 7.5;
-                      const major = i % 5 === 0;
-                      return (
-                        <g key={i}>
-                          <line
-                            x1={major ? 48 : 55}
-                            y1={y}
-                            x2="75"
-                            y2={y}
-                            stroke={major ? '#e0f2fe' : '#bae6fd'}
-                            strokeWidth={major ? 1.25 : 0.7}
-                            opacity={major ? 0.72 : 0.42}
-                          />
-                          {major && (
-                            <text x="82" y={y + 3} fill="#94a3b8" fontSize="7" fontFamily="monospace">
-                              {50 - i * 0.5}
-                            </text>
-                          )}
-                        </g>
-                      );
-                    })}
-
-                    {/* torneira */}
-                    <rect x="55" y="184" width="14" height="14" fill="#94a3b8" stroke="#334155" strokeWidth="1" />
-                    <ellipse cx="62" cy="191" rx="20" ry="5" fill="#64748b" stroke="#334155" strokeWidth="1" />
-                    <circle cx="62" cy="191" r="3" fill="#0f172a" />
-
-                    {/* ponta fina */}
-                    <path d="M 58 198 L 66 198 L 64 224 Q 62 232 60 224 Z" fill="url(#buretaGlass)" stroke="#67e8f9" strokeWidth="1.5" />
-                    <circle cx="62" cy="226" r="2.5" fill="#38bdf8" filter="url(#buretaGlow)" />
-                  </svg>
+                  <BuretaModalSVG volumeGasto={volumeGasto || 47.1} />
                 </div>
-
                 <div style={{ fontSize: 36, fontWeight: 900, color: '#00e5ff', fontFamily: 'monospace', lineHeight: 1 }}>
                   {(volumeGasto || 0).toFixed(1)}
                 </div>
                 <div style={{ fontSize: 13, color: '#67e8f9' }}>mL gastos</div>
-                <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 4 }}>
-                  faixa esperada: 47.1 a 50.9 mL
-                </div>
+                <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 4 }}>faixa esperada: 47.1 a 50.9 mL</div>
               </div>
 
-              <div
-                style={{
-                  background: 'rgba(34,197,94,0.08)',
-                  border: '1px solid rgba(34,197,94,0.28)',
-                  borderRadius: 14,
-                  padding: '16px 26px',
-                  minWidth: 230,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                }}
-              >
+              <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.28)', borderRadius: 14, padding: '16px 26px', minWidth: 230, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>ART calculado</div>
                 <div style={{ fontSize: 44, fontWeight: 900, color: '#54cf81', fontFamily: 'monospace', lineHeight: 1 }}>
                   {(artPercentual || 0).toFixed(2)}%
                 </div>
-                <div style={{ fontSize: 13, color: '#86efac', marginTop: 8 }}>
-                  Açúcares Redutores Totais
-                </div>
+                <div style={{ fontSize: 13, color: '#86efac', marginTop: 8 }}>Açúcares Redutores Totais</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 18, color: '#fbbf24', fontWeight: 700, marginBottom: 18 }}>
-              🏆 Pontuação Final: {pontuacao} pts
-            </div>
-
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                background: 'linear-gradient(90deg,#0ea5e9,#6366f1)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 14,
-                padding: '12px 34px',
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
+            <div style={{ fontSize: 18, color: '#fbbf24', fontWeight: 700, marginBottom: 18 }}>🏆 Pontuação Final: {pontuacao} pts</div>
+            <button onClick={() => window.location.reload()} style={{ background: 'linear-gradient(90deg,#0ea5e9,#6366f1)', color: 'white', border: 'none', borderRadius: 14, padding: '12px 34px', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               🔄 Recomeçar
             </button>
           </div>
         </div>
       )}
 
-      <LayoutSimulador etapaAtual={etapaAtual} etapas={etapas} pontuacao={pontuacao}>
-        <div className="max-w-7xl mx-auto">
-        <div className="bg-gradient-to-b from-amber-100 to-amber-200 rounded-3xl shadow-2xl p-8 border-8 border-amber-900">
-          <h2 className="text-2xl font-bold text-amber-900 mb-6 text-center">Bancada do Laboratório</h2>
-          
-          <div className="bg-gradient-to-b from-stone-400 to-stone-500 rounded-2xl p-8 shadow-inner border-4 border-stone-600 min-h-[700px] relative ">
-            
-            <div className="  grid  grid-cols-1  md:grid-cols-3  gap-12  items-end  mb-12">
-            <div className="flex flex-col items-center gap-8">
-              <div 
-                className="flex flex-col items-center"
-                onDrop={(e) => handleDrop('balanca', e)}
-                onDragOver={handleDragOver}
-              >
-                <div className={`bg-gradient-to-b from-gray-300 to-gray-400 w-32 h-24 rounded-lg border-4 shadow-xl relative transition-all ${
-                  etapas[etapaAtual]?.alvo === 'balanca' ? 'border-green-500 shadow-green-500/50 scale-105' : 'border-gray-600'
-                }`}>
-                  {etapaAtual >= 3 && (
-                            <div className="absolute -top-20">
-                              {/* desenho do coletor */}
-                            </div>
-                          )}
-                  <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-green-400 w-20 h-8 rounded border-2 border-gray-700 flex items-center justify-center">
-                    <span className="text-gray-800 font-mono text-sm font-bold">{peso.toFixed(1)}g</span>
-                  </div>
-                  {balaoPosicionado && (
-                            <div 
-                              className="flex flex-col items-center cursor-move -mt-12"
-                              draggable={etapaAtual >= 2 && !balaoEncaixado}
-                              onDragStart={(e) => handleDragStart('balao', e)}
-                              onDragEnd={handleDragEnd}
-                            >
-                              <div className={`relative transition-all hover:scale-105 ${
-                                itemSegurado === 'balao' ? 'opacity-50' : ''
-                              } ${etapas[etapaAtual]?.alvo === 'balao' ? 'scale-110' : ''}`}>
-                                <div className="w-6 h-11 bg-gradient-to-b from-cyan-100/40 to-transparent border-4 border-cyan-300 mx-auto"></div>
-                             <div className={`w-24 h-20 bg-gradient-to-b from-cyan-100/40 to-cyan-200/60 
-                                  border-2 rounded-full relative shadow-lg overflow-hidden
-                                  ${etapas[etapaAtual]?.alvo === 'balao' ? 'border-green-500' : 'border-cyan-300'}
-                                `}>
 
-                                  {/* MARCA DE VOLUME */}
-                                  <div className="absolute top-8 left-2 right-2 h-0.5 bg-blue-600"></div>
-                                  <div className="absolute top-8 right-0 text-xs text-blue-900 font-bold">
-                                    200mL
-                                  </div>
-                                  
+      {/* ════════════════════════════════════════════════
+         BANCADA
+      ════════════════════════════════════════════════ */}
+      <LayoutSimulador
+        etapaAtual={etapaAtual}
+        etapas={etapas}
+        pontuacao={pontuacao}
+        titulo="Análise de ART"
+        subtitulo={"Açúcares Redutores Totais · Dorna\nMétodo Fehling · TE-088"}
+        icone="🧪"
+        badges={['🍶 FERMENTAÇÃO', '🧪 ART']}
+        footerLabel="🧪 ART Dorna"
+      >
+        <div style={{ background: 'linear-gradient(160deg,#d4c5a0,#c8b48a,#bfab7e)', borderRadius: 26, padding: '22px 18px', border: '8px solid #8b6e45', boxShadow: '0 24px 80px rgba(0,0,0,0.6)', minWidth: 820 }}>
+          <h2 style={{ textAlign: 'center', color: '#4a3010', fontSize: 14, fontWeight: 900, marginBottom: 16, letterSpacing: 0.6 }}>
+            🧪 Bancada — ART (Açúcares Redutores Totais) da Dorna · Método Fehling / TE-088
+          </h2>
 
-                                  {/* ✅ LÍQUIDO REALMENTE DENTRO */}
-                                  <div
-                                    className="absolute bottom-0 left-0 right-0 bg-amber-600 transition-all duration-300"
-                                    style={{ height: `${nivelBalao*0.55}%` }}
-                                  />
-                                </div>
-                                
-                              </div>
-                              <p className="text-xs font-semibold text-gray-800 mt-2">
-                                {etapaAtual >= 2 ? '' : ''} 
-                              </p>
-                               
-                            </div>
-                          )}
+          <div style={{ background: 'linear-gradient(160deg,#78716c,#57534e,#44403c)', borderRadius: 20, padding: '18px 16px', border: '4px solid #292524', boxShadow: 'inset 0 6px 28px rgba(0,0,0,0.4)' }}>
 
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2  w-24 h-8 rounded border-2 border-gray-600 shadow-inner"></div>
-                </div>
-                <p className="text-xs font-semibold text-gray-00 mt-2">Balança</p>
-              </div>
+            {/* ══ ZONA 1: EQUIPAMENTOS ════════════════════════════ */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 16 }}>
 
-              <div 
-                      className="flex flex-col items-center"
-                      onDrop={(e) => handleDrop('microondas', e)}
-                      onDragOver={handleDragOver}
-                    >
-                <div className={`bg-gradient-to-br from-gray-600 to-gray-800 w-40 h-32 rounded-xl border-4 shadow-xl relative transition-all ${
-                  etapas[etapaAtual]?.alvo === 'microondas' ? 'border-green-500 shadow-green-500/50 scale-105' : 'border-gray-900'
-                }`}>
-                  <div className="absolute top-2 right-2 w-16 h-6 bg-black rounded flex items-center justify-center">
-                    <span className="text-green-400 font-mono text-xs">00:{tempoMicroondas.toString().padStart(2, '0')}</span>
-                  </div>
-                  <div className="absolute top-10 left-4 right-4 bottom-4 bg-gray-900 rounded-lg border-2 border-gray-700"></div>
-                  <div className="absolute bottom-2 left-2 w-6 h-6 bg-gray-400 rounded-full border-2 border-gray-600"></div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-2">Microondas</p>
-              
-
-             
-      <div className="relative">
-     <div className="flex flex-col items-center">
-      {/* SLOT FIXO – DETERMINADOR TE-088 */}
-<div className="flex flex-col items-center justify-end min-h-[260px] w-[220px]">
-          {/* TE-088 */}
-       <div
-            onClick={ligarTE088}
-            onDrop={(e) => handleDrop('te088', e)}
-            onDragOver={handleDragOver}
-            className={`relative cursor-pointer transition-all
-              ${etapas[etapaAtual]?.alvo === 'te088' ? 'ring-4 ring-green-500' : ''}
-              ${etapas[etapaAtual]?.itemNecessario === 'te088'? 'animate-pulse-leve': ''}
-            `}
-          >
-
-
-          
-          {/* SVG do equipamento - escala reduzida mantendo proporções */}
-          <svg width="100%" height="100%" viewBox="0 0 500 600" preserveAspectRatio="xMidYMid meet">
-            <defs>
-              {/* Gradientes */}
-              <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#9ca3af" />
-                <stop offset="50%" stopColor="#6b7280" />
-                <stop offset="100%" stopColor="#4b5563" />
-              </linearGradient>
-              
-              <linearGradient id="glassGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#e0f2fe" stopOpacity="0.3" />
-                <stop offset="50%" stopColor="#bae6fd" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.1" />
-              </linearGradient>
-
-              <radialGradient id="displayGlow">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="100%" stopColor="#0f172a" />
-              </radialGradient>
-
-              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-                <feOffset dx="0" dy="2" result="offsetblur"/>
-                <feComponentTransfer>
-                  <feFuncA type="linear" slope="0.3"/>
-                </feComponentTransfer>
-                <feMerge>
-                  <feMergeNode/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* Corpo Principal - Estrutura Metálica */}
-            <g filter="url(#shadow)">
-              <rect x="50" y="450" width="300" height="130" rx="8" 
-                    fill="url(#metalGradient)" stroke="#374151" strokeWidth="2"/>
-              
-              <rect x="80" y="150" width="240" height="310" rx="6" 
-                    fill="url(#metalGradient)" stroke="#374151" strokeWidth="2"/>
-              
-              <rect x="50" y="200" width="30" height="250" rx="4" 
-                    fill="#4b5563" stroke="#374151" strokeWidth="1"/>
-              
-              <rect x="320" y="200" width="30" height="250" rx="4" 
-                    fill="#4b5563" stroke="#374151" strokeWidth="1"/>
-            </g>
-
-            {/* Caldeira de Vidro Borossilicato (ESQUERDA - vazia) */}
-            <g>
-              {/* Base da caldeira */}
-              <ellipse cx="130" cy="150" rx="45" ry="10" 
-                       fill="#1e293b" stroke="#475569" strokeWidth="2"/>
-              
-              {/* Corpo da caldeira */}
-              <rect x="85" y="80" width="90" height="70" 
-                    fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2" rx="4"/>
-              
-              {/* Brilho do vidro */}
-              <rect x="90" y="85" width="15" height="60" 
-                    fill="white" opacity="0.3" rx="2"/>
-              
-              {/* Topo da caldeira */}
-              <ellipse cx="130" cy="80" rx="45" ry="10" 
-                       fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2"/>
-              
-              {/* Tampa superior */}
-              <ellipse cx="130" cy="68" rx="25" ry="6" 
-                       fill="#6b7280" stroke="#4b5563" strokeWidth="2"/>
-              <rect x="126" y="56" width="8" height="15" 
-                    fill="#6b7280" stroke="#4b5563" strokeWidth="1"/>
-            </g>
-
-            {/* BURETA (DIREITA) - Sistema de Titulação */}
-            <g style={{ cursor: etapaAtual === 21 ? 'pointer' : 'default' }}
-              onClick={() => {
-                if (etapaAtual === 21 && !gotejandoBuretaDireita) {
-                  setGotejandoBuretaDireita(true);
-                }
-              }}>
-              {/* Suporte da Bureta */}
-              <rect x="360" y="60" width="8" height="180" 
-                    fill="#4b5563" stroke="#374151" strokeWidth="2"/>
-              
-              {/* Presilha superior */}
-              <rect x="355" y="75" width="18" height="12" rx="2"
-                    fill="#6b7280" stroke="#374151" strokeWidth="1"/>
-              
-              {/* Presilha inferior */}
-              <rect x="355" y="150" width="18" height="12" rx="2"
-                    fill="#6b7280" stroke="#374151" strokeWidth="1"/>
-              
-              {/* Corpo da Bureta (tubo de vidro graduado) */}
-              <rect x="378" y="70" width="24" height="150" 
-                    fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2" rx="2"/>
-              
-              {/* Graduações da bureta */}
-              {[0, 15, 30, 45, 60, 75, 90, 105, 120, 135].map(y => (
-                <line key={y} x1="378" y1={70 + y} x2="385" y2={70 + y} 
-                      stroke="#64748b" strokeWidth="1"/>
-              ))}
-              
-              {/* Nível do reagente (líquido azul - Reagente de Fehling) */}
-              <rect
-                    x="379"
-                    y={205 - (nivelBuretaDireita * 1.35)}
-                    width="22"
-                    height={nivelBuretaDireita * 1.35}
-                    fill={corBuretaDireita}
-                    opacity="0.6"
-                  />
-                   {/* Brilho do vidro da bureta */}
-              <rect x="380" y="72" width="6" height="145" 
-                    fill="white" opacity="0.2" rx="1"/>
-              
-              {/* Torneira/Válvula de controle */}
-              <g>
-                <rect x="386" y="218" width="12" height="8" 
-                      fill="#6b7280" stroke="#374151" strokeWidth="1"/>
-                <ellipse cx="392" cy="222" rx="8" ry="4" 
-                         fill="#4b5563" stroke="#374151" strokeWidth="1"/>
-              </g>
-              
-              {/* Bico da bureta (ponteira) */}
-              <path d="M 390 226 L 388 235 L 394 235 Z" 
-                    fill="#94a3b8" stroke="#64748b" strokeWidth="1"/>
-                    {posicaoGotasBureta.map((y, i) => (
-                  <circle
-                    key={i}
-                    cx="385"
-                    cy={y}
-                    r="4"
-                    fill={corBuretaDireita}
-                  />
-                ))}
-            </g>
-
-            {/* Erlenmeyer/Cuba de Reação (DIREITA) */}
-            <g>
-              {/* Corpo do erlenmeyer */}
-              <path d="M 350 250 L 340 290 L 340 310 Q 340 320, 350 320 L 430 320 Q 440 320, 440 310 L 440 290 L 430 250 Z"
-                    fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2"/>
-              
-              {/* Gargalo */}
-              <rect x="385" y="230" width="20" height="20" 
-                    fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2"/>
-              
-              {/* Boca do erlenmeyer */}
-              <ellipse cx="395" cy="230" rx="10" ry="3" 
-                       fill="url(#glassGradient)" stroke="#94a3b8" strokeWidth="2"/>
-              
-              {/* Brilho do vidro */}
-              <path d="M 352 255 L 348 285 L 348 305" 
-                    stroke="white" strokeWidth="8" opacity="0.2" fill="none"/>
-                     {fervendo && (
-                        <>
-                          {/* bolhas */}
-                          {[...Array(6)].map((_, i) => (
-                            <circle
-                              key={i}
-                              cx={370 + Math.random() * 40}
-                              cy={300 - Math.random() * 40}
-                              r="3"
-                              fill="#93c5fd"
-                              opacity="0.7"
-                              className="animate-bounce"
-                            />
-                          ))}
-
-                          {/* vapor */}
-                          <path
-                            d="M 380 220 C 370 200, 390 180, 380 160"
-                            stroke="#e5e7eb"
-                            strokeWidth="3"
-                            fill="none"
-                            opacity="0.6"
-                            className="animate-pulse"
-                          />
-                        </>
-                      )}
-                      {nivelErlenmeyerTE > 0 && (
-                          <rect
-                            x="350"
-                            y={320 - nivelErlenmeyerTE}
-                            width="80"
-                            height={nivelErlenmeyerTE}
-                            fill={corErlenmeyerDireitoFinal}
-                            opacity="0.9"
-                          />
-                        )}
-
-                        {/* GOTAS DE AZUL DE METILENO */}
-                    {posicaoGotasAzul.map((y, i) => {
-                      const yLiquido = 320 - nivelErlenmeyerTE;
-
-                      // se tocar o líquido → remove gota
-                      if (y >= yLiquido) return null;
-
-                      return (
-                        <circle
-                          key={i}
-                          cx={395}
-                          cy={y}
-                          r="3.2"
-                          fill="#1e40af"
-                          opacity="0.85"
-                        />
-                      );
-                    })}
-                       
-              
-              {/* Base do erlenmeyer */}
-              <ellipse cx="390" cy="320" rx="50" ry="8" 
-                       fill="#1e293b" stroke="#475569" strokeWidth="2"/>
-            </g>
-
-            {/* Eletrodo de Platina (dentro do erlenmeyer) */}
-            <g>
-              <line x1="365" y1="240" x2="365" y2="305" 
-                    stroke="#d1d5db" strokeWidth="3" strokeLinecap="round"/>
-              <circle cx="365" cy="305" r="4" fill="#e5e7eb"/>
-              <circle cx="365" cy="310" r="6" fill="#9ca3af" opacity="0.5"/>
-              
-              {/* Fio de conexão do eletrodo */}
-              <line x1="365" y1="240" x2="365" y2="200" 
-                    stroke="#d1d5db" strokeWidth="2"/>
-            </g>
-
-            {/* Tubulação conectando caldeira */}
-            <path d="M 130 150 Q 130 170, 150 180" 
-                  stroke="#6b7280" strokeWidth="6" fill="none" strokeLinecap="round"/>
-            <circle cx="150" cy="180" r="8" fill="#4b5563" stroke="#374151" strokeWidth="2"/>
-
-            {/* Painel Frontal */}
-            <g>
-              <rect x="100" y="250" width="200" height="180" rx="8" 
-                    fill="#1e293b" stroke="#475569" strokeWidth="2"/>
-              
-              {/* Display Digital */}
-              <rect x="120" y="280" width="160" height="50" rx="4" 
-                    fill="url(#displayGlow)" stroke="#334155" strokeWidth="2"/>
-              
-              <text x="200" y="295" textAnchor="middle" 
-                    fill="#334155" fontSize="10" fontFamily="monospace">
-                mV
-              </text>
-             <text x="200" y="318" textAnchor="middle"
-              fill={te088Aquecendo || te088Quente ? '#f87171' : '#22c55e'}
-              fontSize="28"
-              fontFamily="monospace"
-              fontWeight="bold">
-              {te088Aquecendo || te088Quente ? '95.0' : '25.0'}
-            </text>
-
-              {/* LED Indicador */}
-              <circle
-                  cx="130"
-                  cy="360"
-                  r="6"
-                  fill={te088Aquecendo || te088Quente ? '#ef4444' : '#22c55e'}
-                  className={te088Aquecendo ? 'animate-pulse' : ''}
-                />
-              <text x="145" y="365" fill="#94a3b8" fontSize="11">AQUEC.</text>
-
-              {/* Botão Power */}
-              <g>
-                <circle cx="260" cy="360" r="18" 
-                        fill="#374151" 
-                        stroke="#1f2937" strokeWidth="2"/>
-                <circle cx="260" cy="360" r="14" 
-                        fill="#4b5563"/>
-                <circle cx="260" cy="358" r="10" 
-                        fill="#6b7280"/>
-              </g>
-              <text x="243" y="395" fill="#94a3b8" fontSize="10">POWER</text>
-
-              {/* Controle de Temperatura */}
-              <g>
-                <circle cx="200" cy="400" r="22" 
-                        fill="#374151" stroke="#1f2937" strokeWidth="2"/>
-                <circle cx="200" cy="400" r="18" 
-                        fill="#4b5563" stroke="#374151" strokeWidth="1"/>
-                
-                <line 
-                  x1="200" 
-                  y1="400" 
-                  x2={200 + 14 * Math.cos(-50 * Math.PI / 180)}
-                  y2={400 + 14 * Math.sin(-50 * Math.PI / 180)}
-                  stroke="#f59e0b" strokeWidth="3" strokeLinecap="round"/>
-                
-                {[0, 30, 60, 90].map(angle => (
-                  <line 
-                    key={angle}
-                    x1={200 + 24 * Math.cos((angle - 50) * Math.PI / 180)}
-                    y1={400 + 24 * Math.sin((angle - 50) * Math.PI / 180)}
-                    x2={200 + 28 * Math.cos((angle - 50) * Math.PI / 180)}
-                    y2={400 + 28 * Math.sin((angle - 50) * Math.PI / 180)}
-                    stroke="#6b7280" strokeWidth="2"/>
-                ))}
-              </g>
-              <text x="175" y="435" fill="#94a3b8" fontSize="9">TEMP °C</text>
-            </g>
-
-            {/* Etiqueta */}
-            <rect x="150" y="520" width="100" height="35" rx="4" 
-                  fill="#0f172a" stroke="#334155" strokeWidth="1"/>
-            <text x="200" y="535" textAnchor="middle" 
-                  fill="#60a5fa" fontSize="12" fontWeight="bold">
-              TECNAL
-            </text>
-            <text x="200" y="548" textAnchor="middle" 
-                  fill="#94a3b8" fontSize="10">
-              TE-088
-            </text>
-
-            {/* Ventilação */}
-            {[0, 1, 2, 3, 4].map(i => (
-              <line key={`left-${i}`} x1="110" y1={480 + i * 8} x2="140" y2={480 + i * 8} 
-                    stroke="#374151" strokeWidth="2"/>
-            ))}
-            {[0, 1, 2, 3, 4].map(i => (
-              <line key={`right-${i}`} x1="260" y1={480 + i * 8} x2="290" y2={480 + i * 8} 
-                    stroke="#374151" strokeWidth="2"/>
-            ))}
-          </svg>
-        </div>
-        
-        <p className="text-xs font-semibold text-gray-800 mt-2">Determinador TE-088</p>
-      </div>
-    </div>
-    </div>
-    </div>
-    </div>
-
-              <div className="flex flex-col items-center gap-10">
-              <div 
-                className="flex flex-col items-center cursor-move"
-                draggable
-                onDragStart={(e) => handleDragStart('amostra', e)}
-                onDragEnd={handleDragEnd}
-              >
-                <div className={`relative transition-all hover:scale-110 ${itemSegurado === 'amostra' ? 'opacity-50' : ''}
-                ${etapas[etapaAtual]?.itemNecessario === 'amostra'? 'animate-pulse-leve': ''}`}>
-                  <div className="w-20 h-24 bg-gradient-to-b from-cyan-100/40 to-cyan-200/60 border-4 border-cyan-300 rounded-b-lg relative shadow-lg">
-                    <div className="absolute bottom-0 left-2 right-2 bg-amber-700/60 rounded-b transition-all duration-300" style={{ height: `${nivelAmostra}%` }}></div>
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-400"></div>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-2">🖱️ Amostra</p>
-              </div>
-              
-
-              <div 
-                className="flex flex-col items-center"
-                onDragOver={handleDragOver}
-              >
-              <div className={`relative transition-all duration-700 ${
-                              funilEncaixado ? 'translate-y-6 scale-95' : 
-                ''}`} ></div>
+              {/* BALANÇA */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                 <div
-                      onDrop={(e) => handleDrop('coletor', e)}
-                      onDragOver={handleDragOver}
-                      className="relative w-32 h-40 flex items-start justify-center"
-                    >
-
-                   {/* FUNIL LATERAL */}
-                  {!funilPosicionado && (
-                    <div
-                      draggable
-                      onDragStart={(e) => handleDragStart('funil', e)}
-                      onDragEnd={handleDragEnd}
-                      className={` w-16 h-40 bg-gradient-to-b from-cyan-100/40 to-transparent border-1-4 border-r-4 border-t-4 transition-all
-                        ${itemSegurado === 'funil' ? 'opacity-50' : ''}
-                        ${etapas[etapaAtual]?.itemNecessario === 'funil'? 'animate-pulse-leve': ''}`}
-                        style={{ clipPath: 'polygon(0 0, 100% 0, 80% 100%, 20% 100%)' }}>
-                          <div className="absolute top-8 left-1/2 -translate-x-1/2 w-3 h-12 bg-cyan-200/60 border-2 border-cyan-300"></div>
-                          <div className="absolute top-4 left-1/2 -translate-x-1/2 w-10 h-4 bg-white rounded-full border-2 border-gray-300"></div>
-                      <p className="text-xs font-semibold text-gray-800 mt-20">🖱️ Funil</p>
-                    </div>
-                    
-                    
-                  )}
-              </div>
-              </div>
-              
-
-              <div
-                className="flex flex-col items-center relative"
-                draggable={etapaAtual >= 3}
-                onDragStart={(e) => handleDragStart('coletor', e)}
-                onDragEnd={handleDragEnd}
-                onDrop={(e) => handleDrop('coletor', e)}
-                onDragOver={handleDragOver}
-              >
-                {(funilPosicionado || funilEncaixado) && (
-                <div className={`absolute ${funilEncaixado ? '-top-10' : '-top-20'}`}>
-                  <div className="w-16 h-16 bg-gradient-to-b from-cyan-100/40 to-transparent border-l-4 border-r-4 border-t-4 transition-all" 
-                  style={{ clipPath: 'polygon(0 0, 100% 0, 80% 100%, 20% 100%)' }}>
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 w-3 h-12 bg-cyan-200/60 border-2 border-cyan-300"></div>
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2 w-10 h-4 bg-white rounded-full border-2 border-gray-300"></div>
-                    <p className="text-xs font-semibold text-gray-800 mt-2"></p>
-                  </div>
-                </div>
-              )}
-                  {/* COLETOR */}
-                  <div className={`w-24 h-24 bg-gradient-to-b from-cyan-100/40 to-cyan-200/60 
-                        border-4 rounded-b-2xl relative shadow-lg overflow-hidden transition-all
-                        ${etapas[etapaAtual]?.alvo === 'coletor'? 'border-green-500 shadow-green-500/50 scale-105':'border-cyan-300'}
-                        ${etapas[etapaAtual]?.itemNecessario === 'coletor'? 'animate-pulse-leve': ''}`}>
-                    
-                    {/* LÍQUIDO */}
-                    <div
-                      className="absolute bottom-0 bg-amber-600 w-full transition-all duration-300"
-                      style={{ height: `${nivelColetor}%` }}
-                    />
-                  </div>
-
-                  <p className="text-xs font-semibold text-gray-800 mt-2">🖱️ Coletor</p>
-                </div>
-                   <div className="flex flex-col items-center">
-                <div className="relative">
-                  <div className="w-12 h-16 bg-gradient-to-b from-green-210 to-cyan-300 border-4 border-cyan-500 rounded-lg relative shadow-lg">
-                    <div className="absolute -top-2 -right-2 w-6 h-10 bg-cyan-300 border-2 border-cyan-500 rounded-t-full transform rotate-45"></div>
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 text-cyan-900 text-xs font-bold">4%</div>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">4%</p>
-              </div>
-              </div>
-               {/* SLOT FIXO DO BALÃO DA BANCADA */}
-               <div className="flex flex-col items-center gap-8">
-            <div className="flex flex-col items-center relative min-h-[180px] w-[190px]">
-
-              {!balaoPosicionado && !balaoNoMicroondas && (
-                <div
-                  className="flex flex-col items-center cursor-move relative"
-                  
-                  draggable={etapas[etapaAtual]?.itemNecessario === 'balao'}
-                  onDragStart={(e) => handleDragStart('balao', e)}
-                  onDragEnd={handleDragEnd}
-                  onDrop={(e) => handleDrop('balao-bancada', e)}
+                  className={dropCls('balanca')}
+                  style={{ background: 'rgba(0,0,0,0.20)', borderRadius: 12, padding: '8px 10px' }}
+                  onDrop={e => handleDrop('balanca', e)}
                   onDragOver={handleDragOver}
                 >
-                  <div className={`w-6 h-12 bg-gradient-to-b from-cyan-100/40 to-transparent border-2 border-cyan-300 mx-auto transition-all
-                    ${etapas[etapaAtual]?.alvo === 'balao-bancada'
-                              ? 'border-green-500 shadow-green-500/50 scale-105'
-                              : 'border-cyan-300'
-                          }
-                      ${etapas[etapaAtual]?.itemNecessario === 'balao'? 'animate-pulse-leve': ''}
-                    `}></div>
-
-                  <div
-                        className={`w-24 h-32 bg-gradient-to-b from-cyan-100/40 to-cyan-200/60 
-                          border-4 rounded-full shadow-lg relative overflow-hidden transition-all
-                          ${
-                            etapas[etapaAtual]?.alvo === 'balao-bancada'
-                              ? 'border-green-500 shadow-green-500/50 scale-105'
-                              : 'border-cyan-300'
-                          }
-                          ${etapas[etapaAtual]?.itemNecessario === 'balao'? 'animate-pulse-leve': ''}
-                        `}
-                      >
-
-                    <div className="absolute top-8 left-2 right-2 h-0.5 bg-blue-600"></div>
-                    <div className="absolute top-4 right-1 text-xs text-blue-900 font-bold">
-                      200mL
-                    </div>
-                   {/* GOTAS DE FENOLFTALEÍNA (CAINDO) */}
-                     {gotasFenol > 0 &&
-                           Array.from({ length: gotasFenol }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-                           style={{   top: `${10 + i * 8}px`,
-                                      animation: `quedaGota 0.8s ease-in forwards`,
-                                    }}
-                          >
-                            <div
-                              className="w-2 h-4 bg-pink-500"
-                              style={{
-                                clipPath:
-                                  'polygon(50% 0%, 70% 30%, 100% 60%, 50% 100%, 0% 60%, 30% 30%)',
-                              }}
-                            />
-                          </div>
-                        ))}
-                 <div
-                          className={`absolute bottom-0 left-0 right-0 transition-all duration-500
-                          ${diluindo
-                            ? 'bg-amber-300'
-                            : corBalao === 'amber'
-                            ? 'bg-amber-600'
-                            : corBalao === 'orange'
-                            ? 'bg-orange-400'
-                            : corBalao === 'pink'
-                            ? 'bg-pink-400'
-                            : corBalao === 'rose'
-                            ? 'bg-rose-500'
-                            : 'bg-red-700'}
-                          ${agitacao ? 'animate-vibrar' : ''}
-                          ${amostraQuente ? 'animate-pulse' : ''}
-                          
-                        `}
-                        style={{ height: `${nivelBalao * 0.55}%` }}
-                      />
-
-                  </div>
-                  {/* GOTAS DE EDTA 4% */}
-                    {gotasEDTA > 0 &&
-                        Array.from({ length: gotasEDTA }).map((_, i) => (
-                        <div
-                            key={i}
-                            className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-                            style={{
-                              top: `${6 + i * 10}px`,
-                              animation: 'quedaGota 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-                            }}
-                          >
-                            <div
-                              className="w-2.5 h-5 rounded-full bg-gradient-to-b from-red-500 via-red-700 to-red-900 shadow-md"
-                              style={{
-                                clipPath:
-                                  'polygon(50% 0%, 65% 20%, 80% 45%, 70% 70%, 50% 100%, 30% 70%, 20% 45%, 35% 20%)',
-                              }}
-                            />
-                            {/* brilho da gota */}
-                            <div className="absolute left-1 top-1 w-0.5 h-2 bg-white/40 rounded-full" />
-                          </div>
-                        ))}
-
-
-
-                  <p className="text-xs font-semibold text-gray-800 mt-2">🖱️ Balão</p>
-
-                  {mostrarAvisoResfriamento && (
-                    <div className="absolute -top-24 left-1/2 -translate-x-1/2 z-50">
-                      <div className="bg-red-600 text-white px-4 py-2 rounded-xl shadow-2xl animate-pulse text-xs text-center whitespace-nowrap">
-                        🔥 Aguarde a amostra atingir a temperatura ambiente
-                      </div>
-                    </div>
-                  )}
+                  {/* Display balança */}
+                  <svg width="148" height="120" viewBox="0 -20 148 120">
+                    <defs>
+                      <linearGradient id="artBalBody" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"  stopColor="#5a5e6a" />
+                        <stop offset="100%" stopColor="#3a3d46" />
+                      </linearGradient>
+                      {/* Clip no formato do Erlenmeyer (coords locais do <g>) */}
+                      <clipPath id="artBalcoClip">
+                        <rect x="-4" y="0" width="8" height="13" />
+                        <path d="M -4,13 Q -14,17 -20,27 L 20,27 Q 14,17 4,13 Z" />
+                        <ellipse cx="0" cy="27" rx="20" ry="5" />
+                      </clipPath>
+                    </defs>
+                    <ellipse cx={74} cy={95} rx={60} ry={5} fill="rgba(0,0,0,0.18)" />
+                    {/* Plataforma */}
+                    <ellipse cx={74} cy={28} rx={52} ry={8} fill="rgba(200,200,210,0.85)" stroke="#9ca3af" strokeWidth="1.5" />
+                    <ellipse cx={74} cy={27} rx={50} ry={6} fill="rgba(220,220,230,0.92)" stroke="#9ca3af" strokeWidth="0.8" />
+                    {/* Coluna */}
+                    <rect x={65} y={30} width={18} height={14} rx="2" fill="url(#artBalBody)" stroke="#374151" strokeWidth="1.2" />
+                    {/* Corpo */}
+                    <rect x={10} y={42} width={128} height={44} rx="6" fill="url(#artBalBody)" stroke="#374151" strokeWidth="1.5" />
+                    {/* LCD */}
+                    <rect x={16} y={47} width={80} height={32} rx="4" fill="#0a1018" stroke="#22d3ee" strokeWidth="1.0" />
+                    <text x={56} y={60} textAnchor="middle" fontSize="6.5" fill="#64748b" fontFamily="monospace">
+                      {pesando ? 'PESANDO' : balaoPosicionado ? 'BALÃO ✓' : 'STANDBY'}
+                    </text>
+                    <text x={56} y={75} textAnchor="middle" fontSize="14" fill={pesando ? '#00ff88' : balaoPosicionado ? '#22d3ee' : '#3a5a6a'} fontFamily="monospace" fontWeight="700">
+                      {pesando ? `${peso.toFixed(1)} g` : balaoPosicionado ? '0,0 g' : '—'}
+                    </text>
+                    {/* LED */}
+                    <circle cx={112} cy={63} r={5} fill={pesando ? '#f59e0b' : balaoPosicionado ? '#22c55e' : '#334155'} stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
+                    <text x={74} y={93} textAnchor="middle" fontSize="6" fill="#4a3e28" fontFamily="monospace">Balança de Precisão</text>
+                    {/* Erlenmeyer posicionado — y=0 no topo do bico, cresce para baixo */}
+                    {balaoPosicionado && (
+                      <g transform="translate(74, -14) scale(1.35)">
+                        {/* Líquido (sobe de baixo para cima conforme nivelBalao) */}
+                        {nivelBalao > 0 && (() => {
+                          const liqH  = (nivelBalao / 100) * 32;
+                          const liqTop = 32 - liqH;
+                          return (
+                            <g clipPath="url(#artBalcoClip)">
+                              <rect x="-22" y={liqTop} width="44" height={liqH + 2} fill={corBalaoRgba} />
+                              {/* Menisco */}
+                              <ellipse cx="0" cy={liqTop} rx="3.5" ry="1.2" fill="rgba(255,255,255,0.28)" />
+                            </g>
+                          );
+                        })()}
+                        {/* Boca (menisco) */}
+                        <ellipse cx="0" cy="0" rx="5" ry="2" fill="rgba(185,228,255,0.42)" stroke="#8ac4dc" strokeWidth="1.0" />
+                        {/* Pescoço cilíndrico */}
+                        <rect x="-4" y="0" width="8" height="13" rx="1.5" fill="rgba(185,228,255,0.38)" stroke="#8ac4dc" strokeWidth="1.2" />
+                        {/* Ombros + corpo (Erlenmeyer simétrico) */}
+                        <path d="M -4,13 Q -14,17 -20,27 L 20,27 Q 14,17 4,13 Z"
+                          fill="rgba(185,228,255,0.32)" stroke="#8ac4dc" strokeWidth="1.2" />
+                        {/* Fundo oval */}
+                        <ellipse cx="0" cy="27" rx="20" ry="5" fill="rgba(185,228,255,0.32)" stroke="#8ac4dc" strokeWidth="1.2" />
+                        {/* Reflexo no pescoço */}
+                        <line x1="-3" y1="2" x2="-3" y2="11" stroke="rgba(255,255,255,0.40)" strokeWidth="1.3" strokeLinecap="round" />
+                      </g>
+                    )}
+                  </svg>
                 </div>
-              )}
-
-            </div>
-              <div className="flex flex-col items-center">
-                <div className="relative">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 rounded-full border-2 border-blue-800"></div>
-                  <div className="w-10 h-48 bg-gradient-to-b from-cyan-50/60 to-cyan-100/80 border-4 border-cyan-400 rounded-b relative shadow-lg">
-                    {[0, 10, 20, 30, 40, 50].map((val, i) => (
-                      <div key={val} className="absolute left-0 w-full" style={{ top: `${i * 38.4}px` }}>
-                        <div className="flex items-center justify-between px-1">
-                          <div className="w-3 h-0.5 bg-blue-700"></div>
-                          <span className="text-xs font-bold text-blue-900">{val}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-2 h-4 bg-cyan-300 border-2 border-cyan-500"></div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-6">Bureta 50mL</p>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#e7e5e4' }}>Balança</span>
+                {pesando && <span style={{ fontSize: 8, color: '#fbbf24', fontWeight: 700 }}>⚖️ {peso.toFixed(1)} g</span>}
+                {peso >= 50 && !pesando && <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 700 }}>✓ Pesagem ok</span>}
               </div>
 
-              <div
-                    className="flex flex-col items-center cursor-move"
-                    draggable
-                    onDragStart={(e) => handleDragStart('pipeta', e)}
+              {/* MICROONDAS */}
+              <ZonaDrop id="microondas" onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                <div className={dropCls('microondas')} style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 12, padding: '8px 10px' }}>
+                  <MicroondasArrtSVG aquecendo={aquecendo} bequerDentro={balaoNoMicroondas} />
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#e7e5e4' }}>Micro-ondas</span>
+                {aquecendo && <span style={{ fontSize: 8, color: '#f59e0b', fontWeight: 700 }}>⚡ {tempoMicroondas}s</span>}
+              </ZonaDrop>
+
+              {/* TE-088 */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div
+                  className={dropCls('te088')}
+                  style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 13, padding: '6px 8px', cursor: te088Clicavel || buretaClicavel ? 'pointer' : 'default', width: 220, height: 260 }}
+                  onDrop={e => handleDrop('te088', e)}
+                  onDragOver={handleDragOver}
+                  onClick={te088Clicavel ? handleLigarTE088 : buretaClicavel ? () => setGotejandoBuretaDireita(true) : undefined}
+                >
+                  <TE088SVG
+                    te088Aquecendo={te088Aquecendo}
+                    te088Quente={te088Quente}
+                    fervendo={fervendo}
+                    nivelBuretaDireita={nivelBuretaDireita}
+                    corBuretaDireita={corBuretaDireita}
+                    nivelErlenmeyerTE={nivelErlenmeyerTE}
+                    corErlenmeyerDireitoFinal={corErlenmeyerDireitoFinal}
+                    posicaoGotasAzul={posicaoGotasAzul}
+                    posicaoGotasBureta={posicaoGotasBureta}
+                    etapaAtual={buretaClicavel ? 21 : etapaAtual}
+                    gotejandoBuretaDireita={gotejandoBuretaDireita}
+                    onBuretaClick={() => setGotejandoBuretaDireita(true)}
+                  />
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#e7e5e4' }}>Determinador TE-088</span>
+                {te088Clicavel && <span style={{ fontSize: 8, color: '#22d3ee', fontWeight: 700 }}>↑ Clique para ligar</span>}
+                {buretaClicavel && <span style={{ fontSize: 8, color: '#f59e0b', fontWeight: 700 }}>↑ Clique na bureta</span>}
+                {te088Ligado && !te088Aquecendo && <span style={{ fontSize: 8, color: '#22c55e', fontWeight: 700 }}>✓ Em ebulição</span>}
+              </div>
+
+            </div>{/* fim zona 1 */}
+
+            {/* ══ ZONA 2: VIDRARIA + FERRAMENTAS ══════════════════ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, alignItems: 'flex-end', paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 14 }}>
+
+              {/* AMOSTRA DA DORNA */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ItemBancada id="amostra" className={itemCls('amostra')} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                  <FrascoReagente cor="rgba(200,150,50,0.80)" label="Amostra" sub="Dorna" nivel={nivelAmostra} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>🖱️ Amostra Dorna</span>
+                </ItemBancada>
+              </div>
+
+              {/* COLETOR 400 mL (com funil) */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ZonaDrop id="coletor" onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div
+                    className={`item-drag ${itemCls('coletor')} ${dropCls('coletor')}`}
+                    draggable={isItem('coletor')}
+                    onDragStart={e => handleDragStart('coletor', e)}
                     onDragEnd={handleDragEnd}
                   >
-                <div className="relative">
-                  <div className={`w-6 h-6 bg-red-400 rounded-full border-2 border-red-600 mx-auto transition-all
-                  ${etapas[etapaAtual]?.itemNecessario === 'pipeta'? 'animate-pulse-leve': ''}`}></div>
-                  <div className={`w-2 h-8 bg-gradient-to-b from-cyan-100/60 to-cyan-200/80 border-2 border-cyan-400 mx-auto transition-all
-                  ${etapas[etapaAtual]?.itemNecessario === 'pipeta'? 'animate-pulse-leve': ''}`}></div>
-                  <div className={`w-16 h-20 bg-gradient-to-b from-cyan-20/60 to-cyan-100/0 border-4 border-cyan-400 rounded-full mx-auto relative shadow-lg overflow-hidden transition-all
-                  ${etapas[etapaAtual]?.itemNecessario === 'pipeta'? 'animate-pulse-leve': ''}`}>
-                 {/* LÍQUIDO DA PIPETA */}
-                    <div
-                      className={`absolute bottom-0 left-0 right-0 transition-all duration-300
-                        ${
-                          pipetaAzulCheia
-                            ? 'bg-blue-800'        // 🔵 azul de metileno
-                            : pipetaHClCheia
-                            ? 'bg-red-400'
-                            : pipetaAcucarCheia
-                            ? 'bg-blue-400'
-                            : pipetaCheia
-                            ? 'bg-blue-300'
-                            : 'bg-gray-300'
-                        }
-                      `}
-                      style={{
-                        height: pipetaAzulCheia
-                          ? `${nivelPipetaAzul}%`
-                          : pipetaHClCheia
-                          ? `${nivelPipetaHCl}%`
-                          : pipetaAcucarCheia
-                          ? `${nivelPipetaAcucar}%`
-                          : `${nivelPipeta}%`
-                      }}
-                    />
-
-                      <div className="absolute top-2 left-0 right-0 h-0.5 bg-blue-700"></div>
-                      <div className="absolute top-2 right-1 text-xs font-bold text-blue-900">
-                        20mL
-                      </div>
-                    </div>
-                  <div className={`w-3 h-16 bg-gradient-to-b from-cyan-100/60 to-cyan-200/80 border-2 border-cyan-400 mx-auto transition-all
-                  ${etapas[etapaAtual]?.itemNecessario === 'pipeta'? 'animate-pulse-leve': ''}`}></div>
-                  <div className="w-1 h-3 bg-cyan-300 border border-cyan-500 mx-auto"></div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-2">🖱️Pipeta 20mL</p>
-              </div>
-            </div>
-            </div>
-
-            <div className="flex justify-around items-end flex-wrap gap-4">
-              
-                        <div
-            className="flex flex-col items-center"
-            onDrop={(e) => handleDrop('acido', e)}
-            onDragOver={handleDragOver}
-          >
-            <div
-              className={`w-16 h-20 bg-gradient-to-b from-red-600 to-red-700 
-                border-4 border-red-900 rounded-lg relative shadow-lg transition-all
-                ${etapas[etapaAtual]?.alvo === 'acido'? 'border-green-500 shadow-green-500/50 scale-105': ''}`}>
-              <div className="absolute top-1 left-1 right-1 h-3 bg-red-800 rounded-t"></div>
-              <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white text-xs font-bold">
-                HCl
-              </div>
-            </div>
-
-            <p className="text-xs font-semibold text-gray-800 mt-1">HCl</p>
-          </div>
-
-               <div
-                    className="flex flex-col items-center"
-                    onDrop={(e) => handleDrop('acucar', e)}
-                    onDragOver={handleDragOver}
-                  >
-                    <div
-                      className={`w-16 h-20 bg-gradient-to-b from-amber-400 to-amber-500 border-4 border-amber-700 rounded-lg relative shadow-lg transition-all
-                        ${ etapas[etapaAtual]?.alvo === 'acucar'  ? 'border-green-500 shadow-green-500/50 scale-105': ''}`}>
-                      <div className="absolute top-1 left-1 right-1 h-3 bg-amber-600 rounded-t"></div>
-                      <div className="absolute top-6 left-1/2 -translate-x-1/2 text-amber-900 text-xs font-bold">
-                        Açúcar
-                      </div>
-                    </div>
-
-                    <p className="text-xs font-semibold text-gray-800 mt-1">Açúcar Inv.</p>
+                    <BequerSVG ml={400} nivel={nivelColetor} cor="rgba(200,150,50,0.62)"
+                      id="artcol" funilAcoplado={funilPosicionado || funilEncaixado} filtrando={filtrando} />
                   </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>
+                    {isItem('coletor') ? '🖱️ ' : ''}Coletor 400 mL
+                  </span>
+                  <span style={{ fontSize: 8, color: nivelColetor > 0 ? '#22c55e' : '#94a3b8' }}>
+                    {funilPosicionado ? '↑ Funil acoplado' : nivelColetor > 0 ? '✓ Filtrado' : 'Vazio'}
+                  </span>
+                </ZonaDrop>
+              </div>
 
-             <div
-                      className="flex flex-col items-center cursor-move"
-                      draggable={etapas[etapaAtual]?.itemNecessario === 'fenol'}
-                      onDragStart={(e) => handleDragStart('fenol', e)}
+              {/* BALÃO BANCADA 200 mL */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                {balaoNaBancada ? (
+                  <ZonaDrop id="balao-bancada" onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div
+                      className={`item-drag ${itemCls('balao')} ${dropCls('balao-bancada')}`}
+                      style={{ position: 'relative' }}
+                      draggable={isItem('balao')}
+                      onDragStart={e => handleDragStart('balao', e)}
                       onDragEnd={handleDragEnd}
                     >
-                      <div className={`w-12 h-16 bg-gradient-to-b from-pink-300 to-pink-400 border-4 border-pink-600 rounded-lg relative shadow-lg transiton-all
-                       ${etapas[etapaAtual]?.itemNecessario === 'fenol'? 'animate-pulse-leve': ''}`}>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-6 bg-pink-500 rounded-t-full border-2 border-pink-700"></div>
-                        <div className="absolute top-8 left-1/2 -translate-x-1/2 text-pink-900 text-xs font-bold">Fen.</div>
-                      </div>
-                      <p className="text-xs font-semibold text-gray-800 mt-1">🖱️Fenolftaleína</p>
+                      <BalaoVolumetrico200SVG
+                        nivel={Math.min(nivelBalao * 0.55, 100)}
+                        cor={corBalaoRgba}
+                        id="artbal"
+                      />
+                      {/* Gotas de fenolftaleína */}
+                      {gotasFenol > 0 && Array.from({ length: gotasFenol }).map((_, i) => (
+                        <div key={i} style={{ position: 'absolute', top: 0, left: 'calc(50% - 4px)', width: 8, height: 18, pointerEvents: 'none', zIndex: 30, animation: 'quedaGota 0.8s ease-in forwards' }}>
+                          <svg width="8" height="16" viewBox="0 0 8 16">
+                            <ellipse cx="4" cy="11" rx="3" ry="4" fill="rgba(236,72,153,0.90)" />
+                          </svg>
+                        </div>
+                      ))}
+                      {/* Gotas de EDTA */}
+                      {gotasEDTA > 0 && Array.from({ length: gotasEDTA }).map((_, i) => (
+                        <div key={i} style={{ position: 'absolute', top: 0, left: 'calc(50% - 5px)', width: 10, height: 20, pointerEvents: 'none', zIndex: 30, animation: 'quedaGota 0.9s ease-in forwards' }}>
+                          <svg width="10" height="18" viewBox="0 0 10 18">
+                            <ellipse cx="5" cy="13" rx="3.5" ry="4.5" fill="rgba(147,51,234,0.88)" />
+                          </svg>
+                        </div>
+                      ))}
                     </div>
-
-              <div
-                    className="flex flex-col items-center"
-                    onDrop={(e) => handleDrop('naoh', e)}
-                    onDragOver={handleDragOver}
-                  >
-                  <div className={`w-16 h-20 bg-gradient-to-b from-blue-300 to-blue-400 border-4 rounded-lg relative shadow-lg transition-all
-      ${etapas[etapaAtual]?.alvo === 'naoh'? 'border-green-500 shadow-green-500/50 scale-105': 'border-blue-600'}`}>
-                  <div className="absolute top-1 left-1 right-1 h-3 bg-blue-500 rounded-t"></div>
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 text-blue-900 text-xs font-bold">NaOH</div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">NaOH 20%</p>
-              </div>
-
-             <div className="flex flex-col items-center"
-                onDrop={(e) => handleDrop('edta4', e)}
-                onDragOver={handleDragOver}
-              >
-                
-                  <div className={`w-16 h-20 bg-gradient-to-b from-purple-200 to-purple-700 border-4 border-purple-700 rounded-lg relative shadow-lg transition-all
-                   ${etapas[etapaAtual]?.alvo === 'edta4'? 'border-purple-500 ring-4 ring-green-500': 'border-blue-900'}`}>
-                  <div className="absolute top-1 left-1 right-1 h-3 bg-purple-600 rounded-t"></div>
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 text-purple-900 text-xs font-bold">EDTA</div>
-                </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">EDTA 4%</p>
-              </div>
-
-
-             {/* FEHLING A */}
-                <div
-                  draggable={etapaAtual === 15 && !fehlingAAdicionado}
-                  onDragStart={(e) => {
-                    if (etapaAtual === 15 && !fehlingAAdicionado) {
-                      handleDragStart('fehlingA', e);
-                    }
-                  }}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div
-                    className={`w-16 h-20 bg-gradient-to-b from-blue-500 to-blue-600 border-4 border-blue-800 rounded-lg relative shadow-lg transition-all
-                      ${etapas[etapaAtual]?.itemNecessario === 'fehlingA' ? 'pulse-glow' : ''}
-                    `}
-                  >
-                    <div className="absolute top-1 left-1 right-1 h-3 bg-blue-700 rounded-t"></div>
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white text-xs font-bold">Feh.A</div>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>
+                      {isItem('balao') ? '🖱️ ' : ''}Balão 200 mL
+                    </span>
+                    <span style={{ fontSize: 8, color: nivelBalao > 0 ? '#22c55e' : '#94a3b8' }}>
+                      {nivelBalao > 0 ? '💧 Com solução' : 'Vazio'}
+                    </span>
+                    {amostraQuente && (
+                      <span style={{ fontSize: 8, color: '#ef4444', fontWeight: 700 }}>🔥 Quente!</span>
+                    )}
+                  </ZonaDrop>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: 0.18 }}>
+                    <BalaoVolumetrico200SVG nivel={0} cor="rgba(140,200,240,0.65)" id="artbalghost" />
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#57534e' }}>Balão 200 mL</span>
+                    <span style={{ fontSize: 8, color: '#57534e' }}>{balaoNoMicroondas ? '⚡ No micro-ondas' : '↑ Na balança'}</span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-800 mt-1">Fehling A</p>
-                </div>
-              
-              {/* FEHLING B */}
+                )}
+              </div>
+
+              {/* PIPETA 20 mL */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <div
-                  draggable={etapaAtual === 16 && !fehlingBAdicionado}
-                  onDragStart={(e) => {
-                    if (etapaAtual === 16 && !fehlingBAdicionado) {
-                      handleDragStart('fehlingB', e);
-                    }
-                  }}
+                  className={`item-drag ${itemCls('pipeta')}`}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+                  draggable={isItem('pipeta')}
+                  onDragStart={e => handleDragStart('pipeta', e)}
                   onDragEnd={handleDragEnd}
-                  
-                    
                 >
-                  <div className={`w-16 h-20 bg-gradient-to-b from-green-500 to-green-600 border-4 border-green-800 rounded-lg relative shadow-lg transition-all
-                  ${etapas[etapaAtual]?.itemNecessario === 'fehlingB'? 'animate-pulse-leve': ''}`}>
-                  <div className="absolute top-1 left-1 right-1 h-3 bg-green-700 rounded-t"></div>
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 text-white text-xs font-bold">Feh.B</div>
+                  <PipetaLabSVG nivel={nivelPipetaAtual} cor={corPipetaAtual} cheia={pipetaCarregada} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>🖱️ Pipeta 20 mL</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: pipetaCarregada ? '#34d399' : '#f87171' }}>
+                    {pipetaCarregada ? '● Carregada' : 'Vazia'}
+                  </span>
                 </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">Fehling B</p>
               </div>
 
-              
-              <div
-              draggable={false}
-              onDrop={(e) => handleDrop('azul-metileno', e)}
-              onDragOver={handleDragOver}
-            >
-                  <div className={`w-12 h-16 bg-gradient-to-b from-blue-700 to-blue-800 border-4 border-blue-900 rounded-lg relative shadow-lg transition-all
-                  ${etapas[etapaAtual]?.alvo === 'azul-metileno'? 'ring-4 ring-green-500': 'border-blue-900'}`} >
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-6 bg-blue-800 rounded-t-full border-2 border-blue-900"></div>
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 text-white text-xs font-bold">A.M.</div>
+            </div>{/* fim zona 2 */}
+
+            {/* ══ ZONA 3: FERRAMENTAS + FUNIL ════════════════════ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, alignItems: 'flex-end', paddingBottom: 14, borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 14 }}>
+
+              {/* FUNIL */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div
+                  className={`item-drag ${itemCls('funil')}`}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: funilPosicionado ? 0.15 : 1, transition: 'opacity 0.3s' }}
+                  draggable={isItem('funil') && !funilPosicionado}
+                  onDragStart={e => handleDragStart('funil', e)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <svg width="52" height="62" viewBox="0 0 52 62">
+                    <path d="M2,2 L50,2 L32,52 L20,52 Z" fill="rgba(185,228,255,0.35)" stroke="#8ac4dc" strokeWidth="1.4" />
+                    <ellipse cx={26} cy={2} rx={24} ry={4} fill="rgba(185,228,255,0.42)" stroke="#8ac4dc" strokeWidth="1.2" />
+                    <rect x={22} y={52} width={8} height={8} rx="1.5" fill="rgba(165,215,255,0.30)" stroke="#8ac4dc" strokeWidth="1.0" />
+                    <line x1={6} y1={5} x2={14} y2={50} stroke="rgba(255,255,255,0.30)" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: funilPosicionado ? '#57534e' : '#e7e5e4' }}>
+                    {isItem('funil') ? '🖱️ ' : ''}Funil
+                  </span>
+                  {funilPosicionado && <span style={{ fontSize: 8, color: '#57534e' }}>↑ Acoplado</span>}
                 </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">Azul Met.</p>
               </div>
 
-              <div className="flex flex-col items-center cursor-move"
-                draggable
-                onDragStart={(e) => handleDragStart('agua', e)}
-                onDragEnd={handleDragEnd}
-              >
-                <div className={`w-12 h-16 bg-gradient-to-b from-cyan-200 to-cyan-300 border-4 border-cyan-500 rounded-lg relative shadow-lg transition-all
-                ${etapas[etapaAtual]?.itemNecessario === 'agua'? 'animate-pulse-leve': ''}`}>
-                    <div className="absolute -top-2 -right-2 w-6 h-10 bg-cyan-300 border-2 border-cyan-500 rounded-t-full transform rotate-45"></div>
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 text-cyan-900 text-xs font-bold">H₂O</div>
+              {/* ÁGUA DESMINERALIZADA */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div
+                  className={`item-drag ${itemCls('agua')}`}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+                  draggable={isItem('agua')}
+                  onDragStart={e => handleDragStart('agua', e)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <FrascoReagente cor="rgba(140,200,240,0.75)" label="H₂O" sub="desm." nivel={80} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>
+                    {isItem('agua') ? '🖱️ ' : ''}Água Desm.
+                  </span>
                 </div>
-                <p className="text-xs font-semibold text-gray-800 mt-1">🖱️ Água</p>
               </div>
-            </div>
+
+              {/* FENOLFTALEÍNA */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div
+                  className={`item-drag ${itemCls('fenol')}`}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+                  draggable={isItem('fenol')}
+                  onDragStart={e => handleDragStart('fenol', e)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <FrascoReagente cor="rgba(255,140,200,0.80)" label="Fenolftal." sub="1%" nivel={70} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4' }}>
+                    {isItem('fenol') ? '🖱️ ' : ''}Fenolftaleína
+                  </span>
+                </div>
+              </div>
+
+            </div>{/* fim zona 3 */}
+
+            {/* ══ ZONA 4: REAGENTES ═══════════════════════════════ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, alignItems: 'flex-end' }}>
+
+              {[
+                { id: 'naoh',        cor: 'rgba(140,200,240,0.78)', label: 'NaOH',    sub: '20%'  },
+                { id: 'acido',       cor: 'rgba(200,60,50,0.82)',   label: 'HCl',     sub: ''     },
+                { id: 'acucar',      cor: 'rgba(200,145,30,0.82)',  label: 'Açúcar',  sub: 'Inv.' },
+                { id: 'edta4',       cor: 'rgba(180,100,220,0.78)', label: 'EDTA',    sub: '4%'   },
+                { id: 'azul-metileno', cor: 'rgba(0,30,180,0.85)', label: 'Azul Met.',sub: '1%'  },
+              ].map(({ id: fid, cor, label, sub }) => (
+                <div key={fid} style={{ display: 'flex', justifyContent: 'center' }}>
+                  <ZonaDrop id={fid} onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div className={dropCls(fid)}>
+                      <FrascoReagente cor={cor} label={label} sub={sub} nivel={70} />
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4', textAlign: 'center' }}>{label}</span>
+                  </ZonaDrop>
+                </div>
+              ))}
+
+              {/* FEHLING A — draggável na etapa 15 */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ZonaDrop id="fehlingA" onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div
+                    className={`item-drag ${itemCls('fehlingA')} ${dropCls('fehlingA')}`}
+                    draggable={etapaAtual === 15 && !fehlingAAdicionado}
+                    onDragStart={e => { if (etapaAtual === 15 && !fehlingAAdicionado) handleDragStart('fehlingA', e); }}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <FrascoReagente cor="rgba(0,60,180,0.80)" label="Fehling A" sub="" nivel={68} />
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4', textAlign: 'center' }}>
+                    {isItem('fehlingA') ? '🖱️ ' : ''}Fehling A
+                  </span>
+                </ZonaDrop>
+              </div>
+
+              {/* FEHLING B — draggável na etapa 16 */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <ZonaDrop id="fehlingB" onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragOver}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div
+                    className={`item-drag ${itemCls('fehlingB')} ${dropCls('fehlingB')}`}
+                    draggable={etapaAtual === 16 && !fehlingBAdicionado}
+                    onDragStart={e => { if (etapaAtual === 16 && !fehlingBAdicionado) handleDragStart('fehlingB', e); }}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <FrascoReagente cor="rgba(10,40,160,0.80)" label="Fehling B" sub="" nivel={68} />
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#e7e5e4', textAlign: 'center' }}>
+                    {isItem('fehlingB') ? '🖱️ ' : ''}Fehling B
+                  </span>
+                </ZonaDrop>
+              </div>
+
+            </div>{/* fim zona 4 */}
 
           </div>
         </div>
 
-        <div className="mt-6 bg-blue-500 rounded-xl shadow-xl p-4 text-center">
-          <p className="text-white font-semibold">💡 Arraste os itens piscando para os locais destacados em verde!</p>
-        </div>
+        {/* ── RODAPÉ — DICA ── */}
+        <div style={{ marginTop: 14, background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.30)', borderRadius: 14, padding: '12px 20px', textAlign: 'center' }}>
+          <p style={{ color: '#7dd3fc', fontWeight: 600, fontSize: 13, margin: 0 }}>
+            💡 Arraste os itens piscando para os locais destacados em Azul!
+          </p>
         </div>
       </LayoutSimulador>
-    </>
+    </div>
   );
 };
 
