@@ -4,6 +4,17 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Home                           from './pages/Home';
 import AreaHub                        from './pages/AreaHub';
 import { SimuladorLoading }           from './SimuladorComponentes';
+import { AuthProvider }               from './context/AuthContext';
+import { AuthBar }                    from './components/auth/AuthBar';
+import { ProtectedRoute }             from './components/auth/ProtectedRoute';
+
+/* ── Plataforma de cursos ─────────────────────────────────────── */
+const Login                         = lazy(() => import('./pages/Login'));
+const Cadastro                      = lazy(() => import('./pages/Cadastro'));
+const AdminDashboard                = lazy(() => import('./admin/AdminDashboard'));
+const AdminCourseDetail             = lazy(() => import('./admin/AdminCourseDetail'));
+const AdminUsers                    = lazy(() => import('./admin/AdminUsers'));
+const AdminVendas                   = lazy(() => import('./admin/AdminVendas'));
 
 /* ── Fermentação ──────────────────────────────────────────────── */
 const SimuladorART                  = lazy(() => import('./fermentacao/simuladorART'));
@@ -99,11 +110,49 @@ function NaoEncontrado() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<SimuladorLoading />}>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <AuthProvider>
+        <AuthBar />
+        <Suspense fallback={<SimuladorLoading />}>
         <Routes>
           {/* ── Home ──────────────────────────────────────────────── */}
           <Route path="/" element={<Home />} />
+
+          {/* ── Plataforma de cursos ──────────────────────────────── */}
+          <Route path="/login"    element={<Login />} />
+          <Route path="/cadastro" element={<Cadastro />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/cursos/:id"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminCourseDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/usuarios"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/vendas"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminVendas />
+              </ProtectedRoute>
+            }
+          />
 
           {/* ── Hubs de área ──────────────────────────────────────── */}
           <Route path="/fermentacao"   element={<AreaHub areaKey="fermentacao" />} />
@@ -169,7 +218,8 @@ function App() {
           {/* ── 404 ───────────────────────────────────────────────── */}
           <Route path="*" element={<NaoEncontrado />} />
         </Routes>
-      </Suspense>
+        </Suspense>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
