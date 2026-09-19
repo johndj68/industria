@@ -35,6 +35,9 @@ export function AuthBar() {
   if (!user) {
     return (
       <div style={S.bar}>
+        <Link to="/cursos" style={S.pill}>
+          Cursos
+        </Link>
         <Link to="/login" style={S.pill}>
           Entrar
         </Link>
@@ -44,9 +47,16 @@ export function AuthBar() {
 
   return (
     <div style={S.bar}>
-      {user.role === 'ADMIN' && (
+      <Link to="/cursos" style={S.pill}>
+        Cursos
+      </Link>
+      {user.role === 'ADMIN' ? (
         <Link to="/admin" style={{ ...S.pill, ...S.destaque }}>
           Painel Admin
+        </Link>
+      ) : (
+        <Link to="/app" style={{ ...S.pill, ...S.destaque }}>
+          Meus cursos
         </Link>
       )}
       <span style={S.pill}>

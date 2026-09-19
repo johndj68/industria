@@ -56,7 +56,9 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const erro = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(erro.message || 'Erro na requisição');
+    const err = new Error(erro.message || 'Erro na requisição');
+    err.status = res.status;
+    throw err;
   }
   if (res.status === 204) return null;
   return res.json();

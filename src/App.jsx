@@ -15,6 +15,13 @@ const AdminDashboard                = lazy(() => import('./admin/AdminDashboard'
 const AdminCourseDetail             = lazy(() => import('./admin/AdminCourseDetail'));
 const AdminUsers                    = lazy(() => import('./admin/AdminUsers'));
 const AdminVendas                   = lazy(() => import('./admin/AdminVendas'));
+const Cursos                        = lazy(() => import('./pages/Cursos'));
+const CursoDetalhe                  = lazy(() => import('./pages/CursoDetalhe'));
+const PagamentoSucesso              = lazy(() => import('./pages/PagamentoSucesso'));
+const PagamentoCancelado            = lazy(() => import('./pages/PagamentoCancelado'));
+const StudentDashboard              = lazy(() => import('./student/StudentDashboard'));
+const CursoAluno                    = lazy(() => import('./student/CursoAluno'));
+const AulaPlayer                    = lazy(() => import('./student/AulaPlayer'));
 
 /* ── Fermentação ──────────────────────────────────────────────── */
 const SimuladorART                  = lazy(() => import('./fermentacao/simuladorART'));
@@ -150,6 +157,36 @@ function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminVendas />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ── Cursos (público + área do aluno) ───────────────────── */}
+          <Route path="/cursos"              element={<Cursos />} />
+          <Route path="/cursos/:slug"        element={<CursoDetalhe />} />
+          <Route path="/pagamento/sucesso"   element={<PagamentoSucesso />} />
+          <Route path="/pagamento/cancelado" element={<PagamentoCancelado />} />
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/curso/:slug"
+            element={
+              <ProtectedRoute>
+                <CursoAluno />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/curso/:slug/aula/:lessonId"
+            element={
+              <ProtectedRoute>
+                <AulaPlayer />
               </ProtectedRoute>
             }
           />

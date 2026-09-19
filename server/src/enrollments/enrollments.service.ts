@@ -15,4 +15,16 @@ export class EnrollmentsService {
     }
     return enrollment;
   }
+
+  listMinhas(userId: string) {
+    return this.prisma.enrollment.findMany({
+      where: { userId },
+      orderBy: { criadoEm: 'desc' },
+      select: {
+        statusPagamento: true,
+        criadoEm: true,
+        course: { select: { id: true, titulo: true, slug: true, capaUrl: true, descricao: true } },
+      },
+    });
+  }
 }

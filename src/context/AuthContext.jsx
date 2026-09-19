@@ -17,8 +17,8 @@ export function AuthProvider({ children }) {
     try {
       const me = await apiFetch('/auth/me');
       setUser(me);
-    } catch {
-      clearTokens();
+    } catch (err) {
+      if (err.status === 401) clearTokens();
       setUser(null);
     } finally {
       setCarregando(false);
