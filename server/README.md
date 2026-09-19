@@ -46,11 +46,18 @@ $ npm run start:prod
 
 ## Run tests
 
+Os testes e2e precisam de um banco Postgres de teste separado do de desenvolvimento
+(evita sujar dados reais). Com o `docker compose up -d` já rodando, crie uma vez:
+
+```bash
+$ docker exec -it server-postgres-1 psql -U postgres -c "CREATE DATABASE plataforma_test;"
+```
+
 ```bash
 # unit tests
 $ npm run test
 
-# e2e tests
+# e2e tests (migra o banco de teste automaticamente antes de rodar)
 $ npm run test:e2e
 
 # test coverage
