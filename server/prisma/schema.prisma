@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ALUNO
+  ADMIN
+}
+
+enum StatusPagamento {
+  PENDENTE
+  PAGO
+  CANCELADO
+  REEMBOLSADO
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  nome         String
+  role         Role         @default(ALUNO)
+  xp           Int          @default(0)
+  nivel        Int          @default(1)
+  criadoEm     DateTime     @default(now())
+  atualizadoEm DateTime     @updatedAt
+
+  enrollments  Enrollment[]
+  progresso    LessonProgress[]
+  badges       UserBadge[]
+
+  @@map("users")
+}
+
+model Course {
+  id             String   @id @default(cuid())
+  titulo         String
+  slug           String   @unique
+  descricao      String
+  precoCentavos  Int
+  capaUrl        String?
+  publicado      Boolean  @default(false)
+  criadoEm       DateTime @default(now())
+  atualizadoEm   DateTime @updatedAt
+
+  modulos        Module[]
+  enrollments    Enrollment[]
+
+  @@map("courses")
+}
+
+model Module {
+  id       String   @id @default(cuid())
+  courseId String
+  titulo   String
+  ordem    Int
+
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  aulas    Lesson[]
+
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Lesson {
+  id            String   @id @default(cuid())
+  moduleId      String
+  titulo        String
+  ordem         Int
+  cfVideoId     String?
+  duracaoSeg    Int      @default(0)
+  xpRecompensa  Int      @default(10)
+
+  module        Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progresso     LessonProgress[]
+
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model Enrollment {
+  id               String          @id @default(cuid())
+  userId           String
+  courseId         String
+  statusPagamento  StatusPagamento @default(PENDENTE)
+  valorPagoCentavos Int?
+  stripeSessionId  String?         @unique
+  criadoEm         DateTime        @default(now())
+  atualizadoEm     DateTime        @updatedAt
+
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course           Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id                 String   @id @default(cuid())
+  userId             String
+  lessonId           String
+  concluida          Boolean  @default(false)
+  segundosAssistidos Int      @default(0)
+  atualizadoEm       DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson             Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+model Badge {
+  id        String      @id @default(cuid())
+  nome      String
+  icone     String
+  criterio  String
+
+  usuarios  UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id             String   @id @default(cuid())
+  userId         String
+  badgeId        String
+  conquistadoEm  DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge          Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
