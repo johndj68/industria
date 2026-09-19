@@ -11,6 +11,8 @@ import { ProtectedRoute }             from './components/auth/ProtectedRoute';
 /* ── Plataforma de cursos ─────────────────────────────────────── */
 const Login                         = lazy(() => import('./pages/Login'));
 const Cadastro                      = lazy(() => import('./pages/Cadastro'));
+const EsqueciSenha                  = lazy(() => import('./pages/EsqueciSenha'));
+const RedefinirSenha                = lazy(() => import('./pages/RedefinirSenha'));
 const AdminDashboard                = lazy(() => import('./admin/AdminDashboard'));
 const AdminCourseDetail             = lazy(() => import('./admin/AdminCourseDetail'));
 const AdminUsers                    = lazy(() => import('./admin/AdminUsers'));
@@ -128,6 +130,8 @@ function App() {
           {/* ── Plataforma de cursos ──────────────────────────────── */}
           <Route path="/login"    element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route
             path="/admin"
             element={

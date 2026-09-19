@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { apiFetch } from '../api/client';
 
 const S = {
   page: {
@@ -56,26 +56,39 @@ const S = {
     fontSize: 13,
     marginBottom: 18,
   },
+  sucesso: {
+    background: 'rgba(52,211,153,0.12)',
+    border: '1px solid rgba(52,211,153,0.35)',
+    color: '#34d399',
+    borderRadius: 10,
+    padding: '12px 14px',
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
   rodape: { marginTop: 20, textAlign: 'center', fontSize: 13, color: 'rgba(240,246,255,0.52)' },
   link: { color: '#22d3ee', textDecoration: 'none', fontWeight: 700 },
 };
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+export default function RedefinirSenha() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') ?? '';
+  const [novaSenha, setNovaSenha] = useState('');
   const [erro, setErro] = useState('');
+  const [sucesso, setSucesso] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   async function onSubmit(e) {
     e.preventDefault();
     setErro('');
     setCarregando(true);
     try {
-      await login(email, senha);
-      navigate(location.state?.from ?? '/');
+      await apiFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, novaSenha }),
+      });
+      setSucesso(true);
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -83,48 +96,52 @@ export default function Login() {
     }
   }
 
+  if (!token) {
+    return (
+      <div style={S.page}>
+        <div style={S.card}>
+          <h1 style={S.titulo}>Link inválido</h1>
+          <p style={S.subtitulo}>Este link de redefinição está incompleto ou expirou.</p>
+          <div style={S.rodape}>
+            <Link to="/esqueci-senha" style={S.link}>
+              Solicitar novo link →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={S.page}>
       <div style={S.card}>
-        <h1 style={S.titulo}>Entrar</h1>
-        <p style={S.subtitulo}>Acesse sua conta na plataforma.</p>
+        <h1 style={S.titulo}>Nova senha</h1>
+        <p style={S.subtitulo}>Escolha uma nova senha para sua conta.</p>
 
         {erro && <div style={S.erro}>{erro}</div>}
 
-        <form onSubmit={onSubmit}>
-          <label style={S.label}>Email</label>
-          <input
-            style={S.input}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-
-          <label style={S.label}>Senha</label>
-          <input
-            style={S.input}
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-          />
-
-          <button style={S.botao} type="submit" disabled={carregando}>
-            {carregando ? 'Entrando…' : 'Entrar'}
-          </button>
-        </form>
-
-        <div style={{ ...S.rodape, marginTop: 12 }}>
-          <Link to="/esqueci-senha" style={S.link}>
-            Esqueci minha senha
-          </Link>
-        </div>
+        {sucesso ? (
+          <div style={S.sucesso}>Senha redefinida! Redirecionando pro login…</div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <label style={S.label}>Nova senha</label>
+            <input
+              style={S.input}
+              type="password"
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              minLength={6}
+              required
+            />
+            <button style={S.botao} type="submit" disabled={carregando}>
+              {carregando ? 'Salvando…' : 'Redefinir senha'}
+            </button>
+          </form>
+        )}
 
         <div style={S.rodape}>
-          Não tem conta?{' '}
-          <Link to="/cadastro" style={S.link}>
-            Cadastre-se
+          <Link to="/login" style={S.link}>
+            ← Voltar ao login
           </Link>
         </div>
       </div>
